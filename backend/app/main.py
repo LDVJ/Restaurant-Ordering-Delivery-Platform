@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routers import auth
+from app.exception_handlers import register_exception_handlers
 
 app = FastAPI()
 
@@ -13,6 +15,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"]
 )
+
+register_exception_handlers(app=app)
+
+
+app.include_router(auth.router)
 
 @app.get("/")
 async def root():
