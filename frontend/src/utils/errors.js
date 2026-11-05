@@ -1,6 +1,6 @@
 /**
  * CampusBite API Error Parser
- * Section 6 of Frontend Guide
+ * Section 6 of Frontend Guide & Backend Error Structure
  */
 
 export function getErrorMessage(error) {
@@ -10,19 +10,38 @@ export function getErrorMessage(error) {
 
   // Check if error response exists from server
   if (error.response && error.response.data) {
-    const detail = error.response.data.detail;
+    const data = error.response.data;
+
+    // Custom backend format: { detail: "Validation failed", errors: [{ field, message }] }
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      const first = data.errors[0];
+      if (first && typeof first.message === 'string') {
+        return first.message;
+      }
+    }
+
+    const detail = data.detail;
 
     // detail is a simple string error message (400, 401, 403, 404, 409, 429, 503)
-    if (typeof detail === 'string' && detail.trim().length > 0) {
+    if (typeof detail === 'string' && detail.trim().length > 0 && detail !== 'Validation failed') {
       return detail;
     }
 
-    // detail is a list of validation errors (FastAPI 422 Unprocessable Entity)
+    // detail is a list of validation errors (standard FastAPI 422 Unprocessable Entity)
     if (Array.isArray(detail) && detail.length > 0) {
       const firstError = detail[0];
-      if (firstError && typeof firstError.msg === 'string') {
-        return firstError.msg;
+      if (firstError) {
+        if (typeof firstError.msg === 'string') {
+          return firstError.msg;
+        }
+        if (typeof firstError.message === 'string') {
+          return firstError.message;
+        }
       }
+    }
+
+    if (typeof detail === 'string' && detail.trim().length > 0) {
+      return detail;
     }
   }
 

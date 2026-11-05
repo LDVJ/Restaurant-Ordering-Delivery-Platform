@@ -29,7 +29,7 @@ export default function Select({
       {label && (
         <label
           htmlFor={selectId}
-          className="text-xs font-semibold uppercase tracking-wider text-muted-text"
+          className="text-sm font-medium text-text-main"
         >
           {label} {required && <span className="text-danger">*</span>}
         </label>

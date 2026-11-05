@@ -255,7 +255,7 @@ export default function UiDemoPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
-            label="Search Restaurants"
+            label="Search restaurants"
             placeholder="e.g. Biryani, Pizza, Burger..."
             icon={Search}
             value={inputValue}
@@ -265,7 +265,7 @@ export default function UiDemoPage() {
           />
 
           <Input
-            label="Email Address"
+            label="Email address"
             type="email"
             placeholder="asha@example.com"
             icon={Mail}
@@ -276,7 +276,7 @@ export default function UiDemoPage() {
           />
 
           <Select
-            label="Select Cuisine"
+            label="Select cuisine"
             value={selectValue}
             onChange={(e) => setSelectValue(e.target.value)}
             options={[
@@ -289,7 +289,7 @@ export default function UiDemoPage() {
           />
 
           <Select
-            label="Order Status Filter"
+            label="Order status filter"
             placeholder="Select status..."
             options={Object.keys(ORDER_STATUSES)}
             error="Status is required for this action"

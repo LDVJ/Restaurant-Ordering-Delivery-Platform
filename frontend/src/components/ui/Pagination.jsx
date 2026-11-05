@@ -52,6 +52,7 @@ export default function Pagination({
           disabled={page <= 1}
           aria-label="Previous page"
           icon={ChevronLeft}
+          className="whitespace-nowrap"
         >
           Previous
         </Button>
@@ -109,9 +110,12 @@ export default function Pagination({
           onClick={handleNext}
           disabled={page >= totalPages}
           aria-label="Next page"
+          className="whitespace-nowrap"
         >
-          <span>Next</span>
-          <ChevronRight className="w-3.5 h-3.5" />
+          <span className="inline-flex items-center gap-1">
+            <span>Next</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </span>
         </Button>
       </div>
     </nav>

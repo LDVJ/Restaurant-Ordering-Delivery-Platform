@@ -28,13 +28,13 @@ export default function Input({
       {label && (
         <label
           htmlFor={inputId}
-          className="text-xs font-semibold uppercase tracking-wider text-muted-text flex items-center justify-between"
+          className="text-sm font-medium text-text-main flex items-center justify-between"
         >
           <span>
             {label} {required && <span className="text-danger">*</span>}
           </span>
           {maxLength && (
-            <span className="text-[11px] font-normal normal-case text-gray-400">
+            <span className="text-xs font-normal text-muted-text">
               {String(value ?? '').length}/{maxLength}
             </span>
           )}
