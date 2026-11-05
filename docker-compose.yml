@@ -2,7 +2,6 @@
 services:
   db:
     image: postgres:16
-    container_name: project_db
 
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -20,7 +19,6 @@ services:
 
   backend:
     build: ./backend
-    container_name: project_backend
 
     env_file:
       - ./backend/.env

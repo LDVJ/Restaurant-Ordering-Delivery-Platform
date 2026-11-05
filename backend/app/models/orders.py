@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db import Base
 from sqlalchemy import String, Text, func, Enum as SQLEnum, ForeignKey,  Numeric, DateTime, Integer, CheckConstraint
-from app.enum.orderEnum import OrderStatus, PaymentStatus
+from app.enums.orderEnum import OrderStatus, PaymentStatus
 from datetime import datetime
 from app.utilities import generate_id
 from decimal import Decimal
@@ -17,7 +17,7 @@ class Orders(Base):
     status : Mapped[OrderStatus] =  mapped_column(SQLEnum(OrderStatus, name="order_status"), default=OrderStatus.PENDING_PAYMENT)
     payment_status : Mapped[PaymentStatus] = mapped_column(SQLEnum(PaymentStatus, name="payment_status"), nullable=False, default=PaymentStatus.PENDING)
     bill_amount : Mapped[Decimal] = mapped_column(Numeric(10,2), nullable=False)
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),server_default=func.now())
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
     delivered_at : Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     delivery_address_text: Mapped[str] = mapped_column(String(500), nullable=False)
@@ -48,7 +48,7 @@ class Review(Base):
     restaurant_id : Mapped[str] = mapped_column(ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
     rating : Mapped[int] = mapped_column(nullable=False)
     comment : Mapped[str] = mapped_column(Text, nullable=True)
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         CheckConstraint(

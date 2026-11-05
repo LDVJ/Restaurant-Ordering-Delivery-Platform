@@ -17,7 +17,7 @@ class Restaurants(Base):
     phone_number : Mapped[str] = mapped_column(String(20), nullable=False)
     phone_e164 : Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     is_active : Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))    
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True,onupdate=func.now())
 
     address : Mapped["RestaurantAddress"] = relationship(back_populates="restaurant",uselist=False)

@@ -209,31 +209,53 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_reviews_order_id'), table_name='reviews')
     op.drop_index(op.f('ix_reviews_customer_id'), table_name='reviews')
     op.drop_table('reviews')
+
     op.drop_index(op.f('ix_return_requests_resolved_by'), table_name='return_requests')
     op.drop_index(op.f('ix_return_requests_order_id'), table_name='return_requests')
     op.drop_index(op.f('ix_return_requests_customer_id'), table_name='return_requests')
     op.drop_table('return_requests')
+
     op.drop_table('payment_ledger')
+
     op.drop_index(op.f('ix_order_items_order_id'), table_name='order_items')
     op.drop_index(op.f('ix_order_items_menu_item_id'), table_name='order_items')
     op.drop_table('order_items')
+
     op.drop_index(op.f('ix_admin_reminder_logs_restaurant_id'), table_name='admin_reminder_logs')
     op.drop_index(op.f('ix_admin_reminder_logs_order_id'), table_name='admin_reminder_logs')
     op.drop_table('admin_reminder_logs')
+
     op.drop_index(op.f('ix_restaurant_address_restaurant_id'), table_name='restaurant_address')
     op.drop_table('restaurant_address')
+
     op.drop_index(op.f('ix_orders_restaurant_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_delivery_partner_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_customer_id'), table_name='orders')
     op.drop_table('orders')
+
     op.drop_index(op.f('ix_menu_items_restaurant_id'), table_name='menu_items')
     op.drop_index(op.f('ix_menu_items_name'), table_name='menu_items')
     op.drop_table('menu_items')
-    op.drop_index('unique_default_address', table_name='user_address', postgresql_where=sa.text('is_default=true'))
+
+    op.drop_index(
+        'unique_default_address',
+        table_name='user_address',
+        postgresql_where=sa.text('is_default=true')
+    )
     op.drop_index(op.f('ix_user_address_user_id'), table_name='user_address')
     op.drop_table('user_address')
+
     op.drop_index(op.f('ix_restaurants_owner_id'), table_name='restaurants')
     op.drop_index(op.f('ix_restaurants_name'), table_name='restaurants')
     op.drop_table('restaurants')
+
     op.drop_table('users')
+
+    # Drop PostgreSQL ENUM types after dropping dependent tables
+    op.execute("DROP TYPE IF EXISTS return_request_status")
+    op.execute("DROP TYPE IF EXISTS ledger_entry_type")
+    op.execute("DROP TYPE IF EXISTS payment_status")
+    op.execute("DROP TYPE IF EXISTS order_status")
+    op.execute("DROP TYPE IF EXISTS users_role")
+
     # ### end Alembic commands ###

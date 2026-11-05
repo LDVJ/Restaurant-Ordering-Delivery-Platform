@@ -1,7 +1,7 @@
 from app.db import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, DateTime, ForeignKey, Boolean
-from app.enum.userEnum import UsersRole
+from app.enums.userEnum import UsersRole
 from sqlalchemy import Enum as SQLEnum, func, text, Index
 from datetime import datetime
 from app.utilities import generate_id
