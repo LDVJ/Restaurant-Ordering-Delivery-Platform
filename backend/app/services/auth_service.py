@@ -15,7 +15,7 @@ async def register_user(payload : RegisterRequest, db : AsyncSession):
     if check_user.scalar_one_or_none() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already Registered")
 
-    hashed_password = await create_hash_password(payload.password.strip())
+    hashed_password = await create_hash_password(payload.password)
 
     new_user = Users(
         name = payload.name.strip(),
@@ -38,7 +38,7 @@ async def register_user(payload : RegisterRequest, db : AsyncSession):
     return new_user
 
 async def authenticate_user(payload : OAuth2PasswordRequestForm, db : AsyncSession):
-    check_user = await db.execute(select(Users).where(Users.email == payload.username))
+    check_user = await db.execute(select(Users).where(Users.email == payload.username.strip()))
     result = check_user.scalar_one_or_none()
     if (result is None):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")

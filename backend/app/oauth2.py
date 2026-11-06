@@ -11,6 +11,8 @@ from datetime import datetime, timedelta, timezone
 from app.models import user
 from app.schemas import TokenData
 from pydantic import ValidationError
+from app.enums.userEnum import UsersRole
+from typing import Annotated
 
 oauth2_schema = oauth2.OAuth2PasswordBearer(tokenUrl="/auth/login")
 
@@ -56,3 +58,20 @@ async def get_user_with_token(bearer_token : str = Depends(oauth2_schema), db : 
         raise credentials_exception
 
     return user_info
+
+def required_roles(*roles : UsersRole):
+    async def role_checker(current_user : user.Users = Depends(get_user_with_token)):
+        if current_user.role not in roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission for this action")
+        return current_user
+    return role_checker
+
+owner_only = required_roles(UsersRole.RESTAURANT_OWNER)
+customer_only = required_roles(UsersRole.CUSTOMER)
+delivery_only = required_roles(UsersRole.DELIVERY_PARTNER)
+
+CurrentOwner = Annotated[user.Users, Depends(owner_only)]
+CurrentCustomer = Annotated[user.Users, Depends(customer_only)]
+CurrentDeliveryPartner = Annotated[user.Users, Depends(delivery_only)]
+
+        
