@@ -2,7 +2,8 @@ import { useId } from 'react';
 
 /**
  * Input Component
- * Controlled text/number/email/password input with accessible labels and error messages
+ * Controlled text/number/email/password input with accessible labels, error messages,
+ * and support for leading icon and trailing interactive slot (e.g. eye toggle button).
  */
 export default function Input({
   label,
@@ -12,6 +13,7 @@ export default function Input({
   required = false,
   className = '',
   icon: Icon,
+  trailing,
   maxLength,
   value,
   ...props
@@ -58,14 +60,22 @@ export default function Input({
             hasError ? errorId : helperText ? helperId : undefined
           }
           className={`w-full rounded-lg border bg-white text-sm text-text-main placeholder:text-gray-400 transition-colors focus:outline-none focus:ring-2 disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed ${
-            Icon ? 'pl-9 pr-3.5 py-2' : 'px-3.5 py-2'
+            Icon ? 'pl-9' : 'pl-3.5'
           } ${
+            trailing ? 'pr-10' : 'pr-3.5'
+          } py-2 ${
             hasError
               ? 'border-danger focus:border-danger focus:ring-red-100'
               : 'border-border focus:border-brand focus:ring-brand-tint'
           } ${className}`}
           {...props}
         />
+
+        {trailing && (
+          <div className="absolute right-3 inset-y-0 flex items-center">
+            {trailing}
+          </div>
+        )}
       </div>
 
       {hasError ? (

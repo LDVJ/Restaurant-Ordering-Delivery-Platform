@@ -1,89 +1,212 @@
-import { Link } from 'react-router-dom';
-import { Utensils, Sparkles, UserCheck } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
-import StatusBadge from '../../components/ui/StatusBadge';
-import Badge from '../../components/ui/Badge';
-import Button from '../../components/ui/Button';
+import { useState, useEffect } from 'react';
+import { Search, X, UtensilsCrossed } from 'lucide-react';
+import * as restaurantApi from '../../api/restaurantApi';
+import { getErrorMessage } from '../../utils/errors';
+import useDebounce from '../../hooks/useDebounce';
 
-/**
- * RestaurantsPage (Customer Home Placeholder)
- * Sourced from Section 7 of Frontend Guide
- */
+import RestaurantCard from '../../components/restaurant/RestaurantCard';
+import StickyCartBar from '../../components/restaurant/StickyCartBar';
+import Pagination from '../../components/ui/Pagination';
+import Skeleton from '../../components/ui/Skeleton';
+import EmptyState from '../../components/ui/EmptyState';
+import ErrorState from '../../components/ui/ErrorState';
+
+const CUISINES = [
+  'All',
+  'North Indian',
+  'South Indian',
+  'Chinese',
+  'Biryani',
+  'Fast Food',
+  'Desserts',
+  'Beverages',
+];
+
 export default function RestaurantsPage() {
-  const { user } = useAuth();
+  const [restaurants, setRestaurants] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+
+  const [search, setSearch] = useState('');
+  const [cuisine, setCuisine] = useState('All');
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadTrigger, setReloadTrigger] = useState(0);
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadData() {
+      try {
+        const data = await restaurantApi.getRestaurants({
+          search: debouncedSearch,
+          cuisine,
+          page,
+          page_size: 9,
+        });
+        if (!ignore) {
+          setRestaurants(data.items || []);
+          setTotalPages(data.total_pages || 1);
+          setError(null);
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(getErrorMessage(err));
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    loadData();
+
+    return () => {
+      ignore = true;
+    };
+  }, [debouncedSearch, cuisine, page, reloadTrigger]);
+
+  const handleSearchChange = (val) => {
+    setSearch(val);
+    setPage(1);
+    setIsLoading(true);
+  };
+
+  const handleCuisineChange = (val) => {
+    setCuisine(val);
+    setPage(1);
+    setIsLoading(true);
+  };
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setCuisine('All');
+    setPage(1);
+    setIsLoading(true);
+  };
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage);
+    setIsLoading(true);
+  };
+
+  const handleRetry = () => {
+    setIsLoading(true);
+    setReloadTrigger((prev) => prev + 1);
+  };
 
   return (
-    <div className="space-y-6 text-left">
-      {/* Welcome Banner */}
-      <div className="bg-white rounded-2xl border border-border p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="brand">Customer Dashboard</Badge>
-              <StatusBadge status="PLACED" type="order" />
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-main">
-              Welcome, {user?.name || 'Customer'}!
-            </h1>
-            <p className="text-sm text-muted-text mt-1">
-              You are signed in as a <strong className="text-text-main">Customer</strong> ({user?.email}).
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link to="/ui-demo">
-              <Button variant="outline" size="sm" icon={Sparkles}>
-                View UI Demo
-              </Button>
-            </Link>
-          </div>
-        </div>
+    <div className="space-y-6 pb-20 text-left">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">
+          Campus Restaurants
+        </h1>
+        <p className="text-xs sm:text-sm text-muted-text mt-1">
+          Explore delicious meals from verified campus canteens & kitchens
+        </p>
       </div>
 
-      {/* User Details & Next Phase Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border border-border p-6 shadow-xs space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-brand-tint text-brand">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-text-main text-sm">Account Verified</h3>
-              <p className="text-xs text-muted-text">Auth session active</p>
-            </div>
-          </div>
-
-          <div className="space-y-2 text-xs border-t border-border pt-3">
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Role:</span>
-              <span className="font-semibold text-text-main">{user?.role}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Email:</span>
-              <span className="font-semibold text-text-main">{user?.email}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Phone:</span>
-              <span className="font-semibold text-text-main">{user?.phone_e164 || user?.phone_number}</span>
-            </div>
-          </div>
+      {/* Search Input Bar */}
+      <div className="relative">
+        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-text pointer-events-none">
+          <Search className="w-4 h-4" />
         </div>
-
-        <div className="md:col-span-2 bg-white rounded-xl border border-border p-6 shadow-xs flex flex-col justify-center items-start text-left">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 text-brand flex items-center justify-center mb-3">
-            <Utensils className="w-6 h-6" />
-          </div>
-          <h2 className="text-lg font-bold text-text-main mb-1">
-            Restaurant Listing & Menu Module
-          </h2>
-          <p className="text-sm text-muted-text max-w-lg mb-4 leading-relaxed">
-            Authentication is connected to the backend. In the upcoming step, we will connect the live restaurant catalog, menu browsing with the Swiggy-style ADD stepper, and cart management.
-          </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-            ✓ Connected to backend API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
-          </div>
-        </div>
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          placeholder="Search restaurants by name..."
+          className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-border bg-white text-sm text-text-main placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-tint focus:border-brand transition-colors"
+        />
+        {search && (
+          <button
+            type="button"
+            onClick={() => handleSearchChange('')}
+            aria-label="Clear search"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted-text hover:text-text-main p-1"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
+
+      {/* Cuisine Filter Chips */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+        {CUISINES.map((item) => {
+          const isSelected = cuisine === item;
+          return (
+            <button
+              key={item}
+              type="button"
+              onClick={() => handleCuisineChange(item)}
+              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
+                isSelected
+                  ? 'bg-brand text-white border-brand shadow-xs'
+                  : 'bg-white text-muted-text border-border hover:border-gray-300 hover:text-text-main'
+              }`}
+            >
+              {item}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Content States: Loading, Error, Empty, Data */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={idx}
+              className="p-5 rounded-xl border border-border bg-white space-y-3"
+            >
+              <div className="flex items-center gap-3">
+                <Skeleton variant="circular" className="w-12 h-12" />
+                <div className="flex-1 space-y-2">
+                  <Skeleton variant="text" className="w-3/4 h-4" />
+                  <Skeleton variant="text" className="w-1/2 h-3" />
+                </div>
+              </div>
+              <Skeleton variant="rectangular" className="h-10 mt-3" />
+            </div>
+          ))}
+        </div>
+      ) : error ? (
+        <ErrorState
+          title="Unable to load restaurants"
+          message={error}
+          onRetry={handleRetry}
+        />
+      ) : restaurants.length === 0 ? (
+        <EmptyState
+          title="No restaurants found"
+          description="We couldn't find any campus restaurants matching your search criteria."
+          icon={UtensilsCrossed}
+          actionText="Reset filters"
+          onAction={handleResetFilters}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {restaurants.map((restaurant) => (
+              <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            ))}
+          </div>
+
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
+        </>
+      )}
+
+      {/* Sticky Cart Bar */}
+      <StickyCartBar />
     </div>
   );
 }

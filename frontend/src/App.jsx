@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ConfirmProvider } from './context/ConfirmContext';
+import { CartProvider } from './context/CartContext';
 import { ROLES, ROLE_HOME_PATHS } from './utils/constants';
 
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -11,6 +12,8 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import RestaurantsPage from './pages/customer/RestaurantsPage';
+import RestaurantMenuPage from './pages/customer/RestaurantMenuPage';
+import CartPage from './pages/customer/CartPage';
 import OwnerDashboardPage from './pages/owner/OwnerDashboardPage';
 import DeliveryDashboardPage from './pages/delivery/DeliveryDashboardPage';
 import UiDemoPage from './pages/UiDemoPage';
@@ -35,99 +38,117 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <ConfirmProvider>
-          {/* Global Toast Provider */}
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 3500,
-              style: {
-                background: '#FFFFFF',
-                color: '#1C1C1C',
-                border: '1px solid #E5E7EB',
-                borderRadius: '0.75rem',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
-                fontFamily: 'inherit',
-                fontSize: '0.875rem',
-                fontWeight: 500,
-              },
-              success: {
-                iconTheme: {
-                  primary: '#16A34A',
-                  secondary: '#FFFFFF',
+          <CartProvider>
+            {/* Global Toast Provider */}
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background: '#FFFFFF',
+                  color: '#1C1C1C',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: '0.75rem',
+                  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+                  fontFamily: 'inherit',
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
                 },
-              },
-              error: {
-                iconTheme: {
-                  primary: '#DC2626',
-                  secondary: '#FFFFFF',
+                success: {
+                  iconTheme: {
+                    primary: '#16A34A',
+                    secondary: '#FFFFFF',
+                  },
                 },
-              },
-            }}
-          />
+                error: {
+                  iconTheme: {
+                    primary: '#DC2626',
+                    secondary: '#FFFFFF',
+                  },
+                },
+              }}
+            />
 
-          <div className="min-h-screen bg-page text-text-main font-sans">
-            <Routes>
-              {/* Root redirect based on auth status */}
-              <Route path="/" element={<RootRedirect />} />
+            <div className="min-h-screen bg-page text-text-main font-sans">
+              <Routes>
+                {/* Root redirect based on auth status */}
+                <Route path="/" element={<RootRedirect />} />
 
-              {/* Public-only routes: Login & Register */}
-              <Route
-                path="/login"
-                element={
-                  <PublicOnlyRoute>
-                    <LoginPage />
-                  </PublicOnlyRoute>
-                }
-              />
-              <Route
-                path="/register"
-                element={
-                  <PublicOnlyRoute>
-                    <RegisterPage />
-                  </PublicOnlyRoute>
-                }
-              />
-
-              {/* Protected Authenticated Routes inside AppLayout */}
-              <Route element={<AppLayout />}>
-                {/* Customer Home */}
+                {/* Public-only routes: Login & Register */}
                 <Route
-                  path="/restaurants"
+                  path="/login"
                   element={
-                    <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
-                      <RestaurantsPage />
-                    </ProtectedRoute>
+                    <PublicOnlyRoute>
+                      <LoginPage />
+                    </PublicOnlyRoute>
+                  }
+                />
+                <Route
+                  path="/register"
+                  element={
+                    <PublicOnlyRoute>
+                      <RegisterPage />
+                    </PublicOnlyRoute>
                   }
                 />
 
-                {/* Owner Home */}
-                <Route
-                  path="/owner"
-                  element={
-                    <ProtectedRoute allowedRoles={[ROLES.RESTAURANT_OWNER]}>
-                      <OwnerDashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
+                {/* Protected Authenticated Routes inside AppLayout */}
+                <Route element={<AppLayout />}>
+                  {/* Customer Routes */}
+                  <Route
+                    path="/restaurants"
+                    element={
+                      <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
+                        <RestaurantsPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/restaurants/:id"
+                    element={
+                      <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
+                        <RestaurantMenuPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                  <Route
+                    path="/cart"
+                    element={
+                      <ProtectedRoute allowedRoles={[ROLES.CUSTOMER]}>
+                        <CartPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-                {/* Delivery Partner Home */}
-                <Route
-                  path="/delivery"
-                  element={
-                    <ProtectedRoute allowedRoles={[ROLES.DELIVERY_PARTNER]}>
-                      <DeliveryDashboardPage />
-                    </ProtectedRoute>
-                  }
-                />
-              </Route>
+                  {/* Owner Home */}
+                  <Route
+                    path="/owner"
+                    element={
+                      <ProtectedRoute allowedRoles={[ROLES.RESTAURANT_OWNER]}>
+                        <OwnerDashboardPage />
+                      </ProtectedRoute>
+                    }
+                  />
 
-              {/* Preserved UI Demo Route for testing components and dialogs */}
-              <Route path="/ui-demo" element={<UiDemoPage />} />
+                  {/* Delivery Partner Home */}
+                  <Route
+                    path="/delivery"
+                    element={
+                      <ProtectedRoute allowedRoles={[ROLES.DELIVERY_PARTNER]}>
+                        <DeliveryDashboardPage />
+                      </ProtectedRoute>
+                    }
+                  />
+                </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<RootRedirect />} />
-            </Routes>
-          </div>
+                {/* Preserved UI Demo Route for testing components and dialogs */}
+                <Route path="/ui-demo" element={<UiDemoPage />} />
+
+                {/* Fallback */}
+                <Route path="*" element={<RootRedirect />} />
+              </Routes>
+            </div>
+          </CartProvider>
         </ConfirmProvider>
       </AuthProvider>
     </BrowserRouter>

@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { LogOut, ShoppingBag } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../context/ConfirmContext';
+import { useCart } from '../../context/CartContext';
 import { getInitials, colorFromName } from '../../utils/format';
 import { ROLE_HOME_PATHS, ROLES } from '../../utils/constants';
 import Button from '../ui/Button';
@@ -14,6 +15,7 @@ import Badge from '../ui/Badge';
  */
 export default function Navbar() {
   const { user, logout } = useAuth();
+  const { totalItems } = useCart();
   const confirm = useConfirm();
   const navigate = useNavigate();
 
@@ -57,7 +59,23 @@ export default function Navbar() {
 
         {/* Right: User Info & Actions */}
         {user ? (
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Customer Cart Link */}
+            {user.role === ROLES.CUSTOMER && (
+              <Link
+                to="/cart"
+                aria-label={`Cart with ${totalItems} items`}
+                className="relative p-2 rounded-xl text-text-main hover:text-brand hover:bg-brand-tint/50 transition-colors flex items-center justify-center min-w-[40px] min-h-[40px]"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                {totalItems > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-brand text-white font-bold text-[10px] flex items-center justify-center shadow-xs">
+                    {totalItems > 99 ? '99+' : totalItems}
+                  </span>
+                )}
+              </Link>
+            )}
+
             {/* Role Badge */}
             <Badge variant="brand" size="sm" className="hidden sm:inline-flex">
               {roleLabel}

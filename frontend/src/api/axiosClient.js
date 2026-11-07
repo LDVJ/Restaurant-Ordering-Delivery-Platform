@@ -4,7 +4,7 @@ import { STORAGE_KEYS, ROLE_HOME_PATHS } from '../utils/constants';
 
 /**
  * Axios Client Configuration
- * Sourced from Section 6 of Frontend Guide
+ * Sourced from Section 6 & 16 of Frontend Guide
  */
 
 const axiosClient = axios.create({
@@ -41,7 +41,8 @@ axiosClient.interceptors.response.use(
       localStorage.removeItem(STORAGE_KEYS.USER);
       localStorage.removeItem(STORAGE_KEYS.CART);
 
-      toast.error('Your session expired. Please log in again.');
+      // Store session expiry flag for LoginPage to read upon mount
+      sessionStorage.setItem('campusbite_session_expired', 'true');
 
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
