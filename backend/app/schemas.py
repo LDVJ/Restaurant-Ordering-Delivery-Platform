@@ -178,11 +178,10 @@ class RestaurantResponse(BaseModel):
         from_attributes=True
     )
 
-class MenuItemResponse(CreateMenuItem):
+class OwnerMenuItem(CreateMenuItem):
     id : str
-    restaurant_id : str
     created_at : datetime
-    updated_at : datetime
+    updated_at : datetime | None= None
 
     model_config = ConfigDict(
             from_attributes=True
@@ -194,12 +193,12 @@ class UpdateRestaurantAdress(BaseModel):
         str_strip_whitespace=True
     )
     
-    house : str | None
-    city : str | None
-    state : str | None
-    country : str | None
-    country_code: CountryCode | None
-    phone_number: PhoenNumber | None
+    house : str 
+    city : str 
+    state : str
+    country : str 
+    country_code: CountryCode
+    phone_number: PhoenNumber
 
     @computed_field
     @property
@@ -214,12 +213,11 @@ class UpdateRestaurant(BaseModel):
         str_strip_whitespace=True
     )
 
-    id : str
-    name : str | None = Field(max_length=100) 
-    description : str | None = Field(max_length=250)
-    cuisine : str | None = None
-    country_code: CountryCode | None = None
-    phone_number: PhoenNumber | None = None
+    name : str = Field(min_length=2, max_length=100) 
+    description : str = Field(min_length=2, max_length=250)
+    cuisine : str = Field(min_length=2, max_length=250)
+    country_code: CountryCode
+    phone_number: PhoenNumber
 
     @field_validator("name", mode="before")
     @classmethod
@@ -234,3 +232,53 @@ class UpdateRestaurant(BaseModel):
         if self.phone_number and self.country_code:
             return f"{self.country_code}{self.phone_number}"
         return None
+
+
+class CustomerRestaurantList(BaseModel):
+
+    model_config =  ConfigDict(from_attributes=True)
+
+    id : str
+    name : str
+    description : str 
+    cuisine : str
+    city : str
+    avg_rating : float | None = Field(default=None, ge=0, le=5)
+    review_count : int = 0
+
+class CustomerRestaurantResponse(BaseModel):
+    items : list[CustomerRestaurantList]
+    total : int 
+    page : int 
+    page_size : int 
+    total_pages : int 
+
+    model_config = ConfigDict(from_attributes=True)
+
+class CustomerRestaurantInfoResponse(BaseModel):
+    id : str
+    name : str
+    description : str
+    cuisine : str
+    city : str
+    address : str
+    avg_rating : float | None = None
+    review_count : int = 0
+
+class MenuItems(CreateMenuItem):
+    id : str
+
+class CustomerMenuItemsResponse(BaseModel):
+    items : list[MenuItems]
+    total : int
+    page : int
+    page_size : int
+    total_pages : int
+
+
+class OwnerMenuItemsResponse(BaseModel):
+    items : list[OwnerMenuItem]
+    total : int
+    page : int
+    page_size : int
+    total_pages : int    
