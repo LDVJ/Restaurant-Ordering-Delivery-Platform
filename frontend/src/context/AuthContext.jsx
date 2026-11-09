@@ -49,6 +49,12 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  // Update stored user profile
+  const updateUser = useCallback((updatedUser) => {
+    setUser(updatedUser);
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+  }, []);
+
   // Logout handler
   const logout = useCallback(() => {
     setToken(null);
@@ -56,7 +62,6 @@ export function AuthProvider({ children }) {
 
     localStorage.removeItem(STORAGE_KEYS.TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER);
-    localStorage.removeItem(STORAGE_KEYS.CART);
   }, []);
 
   const value = {
@@ -64,6 +69,7 @@ export function AuthProvider({ children }) {
     token,
     isAuthenticated: Boolean(token && user),
     login,
+    updateUser,
     logout,
     isLoading,
   };

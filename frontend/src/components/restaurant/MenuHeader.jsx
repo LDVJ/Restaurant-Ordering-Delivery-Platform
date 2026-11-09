@@ -5,6 +5,7 @@ import { getInitials, colorFromName } from '../../utils/format';
 /**
  * MenuHeader Component
  * Displays restaurant information, address, cuisine, ratings, and back navigation.
+ * No phone number is displayed while browsing (API contract).
  */
 export default function MenuHeader({ restaurant }) {
   if (!restaurant) return null;
@@ -60,7 +61,7 @@ export default function MenuHeader({ restaurant }) {
               )}
             </div>
 
-            {/* Meta info: Cuisine, Reviews, Address */}
+            {/* Meta info: Cuisine, Reviews, City */}
             <div className="mt-2 flex flex-wrap items-center gap-y-1.5 gap-x-3 text-xs sm:text-sm text-muted-text">
               <span className="font-semibold text-text-main">
                 {restaurant.cuisine}
@@ -83,7 +84,7 @@ export default function MenuHeader({ restaurant }) {
 
             {/* Full address string */}
             {restaurant.address && (
-              <div className="flex items-start gap-1.5 mt-2 text-xs text-muted-text">
+              <div className="flex items-start gap-1.5 mt-2.5 text-xs text-muted-text">
                 <MapPin className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-text" />
                 <span className="line-clamp-2 leading-relaxed">
                   {restaurant.address}

@@ -6,6 +6,15 @@ import axiosClient from './axiosClient';
  */
 
 /**
+ * Fetch sorted list of distinct cuisines of active restaurants
+ * Sourced from API_CONTRACT.md (GET /restaurants/cuisines)
+ */
+export async function getCuisines() {
+  const response = await axiosClient.get('/restaurants/cuisines');
+  return response.data;
+}
+
+/**
  * Fetch active restaurants with optional search, cuisine, and pagination
  */
 export async function getRestaurants({

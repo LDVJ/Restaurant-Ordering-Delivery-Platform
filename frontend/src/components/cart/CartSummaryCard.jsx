@@ -1,4 +1,4 @@
-import { ArrowRight, ShieldCheck } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { formatCurrency } from '../../utils/format';
 import Button from '../ui/Button';
 
@@ -23,18 +23,13 @@ export default function CartSummaryCard({ subtotal, totalItems, onCheckout }) {
             {formatCurrency(subtotal)}
           </span>
         </div>
-
-        <div className="flex items-center justify-between text-xs text-emerald-700 bg-emerald-50 px-2.5 py-1.5 rounded-lg border border-emerald-200">
-          <span>Delivery & taxes</span>
-          <span className="font-bold">Included</span>
-        </div>
       </div>
 
       <div className="border-t border-border pt-3">
         <div className="flex items-baseline justify-between">
           <div>
             <span className="font-bold text-base text-text-main">To pay</span>
-            <p className="text-[11px] text-muted-text">No additional charges</p>
+            <p className="text-[11px] text-muted-text">No extra charges</p>
           </div>
           <span className="font-extrabold text-xl text-brand">
             {formatCurrency(subtotal)}
@@ -53,11 +48,10 @@ export default function CartSummaryCard({ subtotal, totalItems, onCheckout }) {
         Proceed to checkout
       </Button>
 
-      {/* Trust reassurance */}
-      <div className="flex items-center justify-center gap-1.5 text-[11px] text-muted-text pt-1">
-        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-        <span>Fresh meals delivered straight to campus</span>
-      </div>
+      {/* Simulation Notice */}
+      <p className="text-center text-[11px] text-muted-text pt-1">
+        Payment is simulated. No real money is charged.
+      </p>
     </div>
   );
 }

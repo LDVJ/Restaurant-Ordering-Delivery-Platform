@@ -1,39 +1,76 @@
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { STORAGE_KEYS } from '../utils/constants';
+import { useAuth } from './AuthContext';
 import { useConfirm } from './ConfirmContext';
 
 const CartContext = createContext(null);
 const INITIAL_CART = { restaurantId: null, restaurantName: '', items: [] };
 
+try {
+  localStorage.removeItem('campusbite_cart');
+} catch {
+  // Ignore legacy storage cleanup error
+}
+
 export function CartProvider({ children }) {
+  const { user } = useAuth();
   const confirm = useConfirm();
 
-  // Lazy initialization from localStorage
+  // Lazy load initial cart for current user
   const [cart, setCart] = useState(() => {
+    if (!user?.id) return INITIAL_CART;
     try {
-      const stored = localStorage.getItem(STORAGE_KEYS.CART);
+      const stored = localStorage.getItem(`${STORAGE_KEYS.CART_PREFIX}${user.id}`);
       return stored ? JSON.parse(stored) : INITIAL_CART;
     } catch {
       return INITIAL_CART;
     }
   });
 
-  // Sync to localStorage
+  // Track user change during render: reset/load immediately without cascading renders
+  const [prevUserId, setPrevUserId] = useState(user?.id);
+  if (prevUserId !== user?.id) {
+    setPrevUserId(user?.id);
+    let userCart = INITIAL_CART;
+    if (user?.id) {
+      try {
+        const stored = localStorage.getItem(`${STORAGE_KEYS.CART_PREFIX}${user.id}`);
+        if (stored) userCart = JSON.parse(stored);
+      } catch {
+        userCart = INITIAL_CART;
+      }
+    }
+    setCart(userCart);
+  }
+
+  // Sync to localStorage only when user matches loaded user
   useEffect(() => {
+    if (!user?.id || prevUserId !== user.id) return;
+    const key = `${STORAGE_KEYS.CART_PREFIX}${user.id}`;
     try {
       if (cart.items.length === 0) {
-        localStorage.removeItem(STORAGE_KEYS.CART);
+        localStorage.removeItem(key);
       } else {
-        localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
+        localStorage.setItem(key, JSON.stringify(cart));
       }
     } catch {
       // Storage unavailable fallback
     }
-  }, [cart]);
+  }, [cart, user?.id, prevUserId]);
 
-  // Add item with single-restaurant cross-check
+  const notifyMaxQuantity = () => {
+    toast('You can order up to 20 of one dish', { id: 'max-dish-quantity' });
+  };
+
   const addItem = useCallback(
     async (dish, restaurant) => {
+      const existing = cart.items.find((it) => it.menu_item_id === dish.id);
+      if (existing && existing.quantity >= 20) {
+        notifyMaxQuantity();
+        return false;
+      }
+
       if (cart.restaurantId && cart.restaurantId !== restaurant.id && cart.items.length > 0) {
         const ok = await confirm({
           title: 'Replace cart items?',
@@ -53,26 +90,19 @@ export function CartProvider({ children }) {
       }
 
       setCart((prev) => {
-        const existingIdx = prev.items.findIndex((item) => item.menu_item_id === dish.id);
-        let nextItems;
-
-        if (existingIdx > -1) {
-          nextItems = [...prev.items];
-          const curQty = nextItems[existingIdx].quantity;
-          if (curQty < 20) {
-            nextItems[existingIdx] = { ...nextItems[existingIdx], quantity: curQty + 1 };
-          }
-        } else {
-          nextItems = [
-            ...prev.items,
-            { menu_item_id: dish.id, name: dish.name, price: String(dish.price), quantity: 1 },
-          ];
+        const idx = prev.items.findIndex((it) => it.menu_item_id === dish.id);
+        if (idx > -1) {
+          const nextItems = [...prev.items];
+          nextItems[idx] = { ...nextItems[idx], quantity: Math.min(20, nextItems[idx].quantity + 1) };
+          return { ...prev, items: nextItems };
         }
-
         return {
           restaurantId: restaurant.id,
           restaurantName: restaurant.name,
-          items: nextItems,
+          items: [
+            ...prev.items,
+            { menu_item_id: dish.id, name: dish.name, price: String(dish.price), quantity: 1 },
+          ],
         };
       });
       return true;
@@ -80,24 +110,27 @@ export function CartProvider({ children }) {
     [cart, confirm]
   );
 
-  // Increase quantity (1-20)
-  const increase = useCallback((menu_item_id) => {
-    setCart((prev) => ({
-      ...prev,
-      items: prev.items.map((it) =>
-        it.menu_item_id === menu_item_id && it.quantity < 20
-          ? { ...it, quantity: it.quantity + 1 }
-          : it
-      ),
-    }));
-  }, []);
+  const increase = useCallback(
+    (menu_item_id) => {
+      const existing = cart.items.find((it) => it.menu_item_id === menu_item_id);
+      if (existing && existing.quantity >= 20) {
+        notifyMaxQuantity();
+        return;
+      }
+      setCart((prev) => ({
+        ...prev,
+        items: prev.items.map((it) =>
+          it.menu_item_id === menu_item_id ? { ...it, quantity: Math.min(20, it.quantity + 1) } : it
+        ),
+      }));
+    },
+    [cart.items]
+  );
 
-  // Decrease quantity or remove if reaching 0
   const decrease = useCallback((menu_item_id) => {
     setCart((prev) => {
       const existing = prev.items.find((it) => it.menu_item_id === menu_item_id);
       if (!existing) return prev;
-
       if (existing.quantity <= 1) {
         const remaining = prev.items.filter((it) => it.menu_item_id !== menu_item_id);
         return {
@@ -106,7 +139,6 @@ export function CartProvider({ children }) {
           items: remaining,
         };
       }
-
       return {
         ...prev,
         items: prev.items.map((it) =>
@@ -116,7 +148,6 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  // Remove specific item directly
   const removeItem = useCallback((menu_item_id) => {
     setCart((prev) => {
       const remaining = prev.items.filter((it) => it.menu_item_id !== menu_item_id);
@@ -128,13 +159,17 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  // Clear entire cart
   const clearCart = useCallback(() => {
     setCart(INITIAL_CART);
-    localStorage.removeItem(STORAGE_KEYS.CART);
-  }, []);
+    if (user?.id) {
+      try {
+        localStorage.removeItem(`${STORAGE_KEYS.CART_PREFIX}${user.id}`);
+      } catch {
+        // Fallback
+      }
+    }
+  }, [user]);
 
-  // Query item quantity
   const getItemQuantity = useCallback(
     (menu_item_id) => {
       const it = cart.items.find((item) => item.menu_item_id === menu_item_id);

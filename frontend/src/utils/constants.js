@@ -18,7 +18,7 @@ export const ROLE_HOME_PATHS = {
 export const STORAGE_KEYS = {
   TOKEN: 'campusbite_token',
   USER: 'campusbite_user',
-  CART: 'campusbite_cart',
+  CART_PREFIX: 'campusbite_cart_',
 };
 
 export const ORDER_STATUSES = {
@@ -34,78 +34,15 @@ export const ORDER_STATUSES = {
 };
 
 export const ORDER_STATUS_CONFIG = {
-  [ORDER_STATUSES.PLACED]: {
-    label: 'Order placed',
-    colorName: 'blue',
-    bg: 'bg-blue-100',
-    text: 'text-blue-800',
-    border: 'border-blue-200',
-    dot: 'bg-blue-600',
-  },
-  [ORDER_STATUSES.ACCEPTED]: {
-    label: 'Accepted',
-    colorName: 'indigo',
-    bg: 'bg-indigo-100',
-    text: 'text-indigo-800',
-    border: 'border-indigo-200',
-    dot: 'bg-indigo-600',
-  },
-  [ORDER_STATUSES.PREPARING]: {
-    label: 'Preparing',
-    colorName: 'amber',
-    bg: 'bg-amber-100',
-    text: 'text-amber-800',
-    border: 'border-amber-200',
-    dot: 'bg-amber-600',
-  },
-  [ORDER_STATUSES.READY]: {
-    label: 'Ready for pickup',
-    colorName: 'teal',
-    bg: 'bg-teal-100',
-    text: 'text-teal-800',
-    border: 'border-teal-200',
-    dot: 'bg-teal-600',
-  },
-  [ORDER_STATUSES.ASSIGNED]: {
-    label: 'Partner assigned',
-    colorName: 'purple',
-    bg: 'bg-purple-100',
-    text: 'text-purple-800',
-    border: 'border-purple-200',
-    dot: 'bg-purple-600',
-  },
-  [ORDER_STATUSES.OUT_FOR_DELIVERY]: {
-    label: 'Out for delivery',
-    colorName: 'orange',
-    bg: 'bg-orange-100',
-    text: 'text-orange-800',
-    border: 'border-orange-200',
-    dot: 'bg-orange-600',
-  },
-  [ORDER_STATUSES.DELIVERED]: {
-    label: 'Delivered',
-    colorName: 'green',
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200',
-    dot: 'bg-emerald-600',
-  },
-  [ORDER_STATUSES.CANCELLED]: {
-    label: 'Cancelled',
-    colorName: 'gray',
-    bg: 'bg-gray-100',
-    text: 'text-gray-700',
-    border: 'border-gray-200',
-    dot: 'bg-gray-500',
-  },
-  [ORDER_STATUSES.REFUNDED]: {
-    label: 'Refunded',
-    colorName: 'gray',
-    bg: 'bg-gray-100',
-    text: 'text-gray-700',
-    border: 'border-gray-200',
-    dot: 'bg-gray-500',
-  },
+  [ORDER_STATUSES.PLACED]: { label: 'Order placed', bg: 'bg-blue-100', text: 'text-blue-800', border: 'border-blue-200', dot: 'bg-blue-600' },
+  [ORDER_STATUSES.ACCEPTED]: { label: 'Accepted', bg: 'bg-indigo-100', text: 'text-indigo-800', border: 'border-indigo-200', dot: 'bg-indigo-600' },
+  [ORDER_STATUSES.PREPARING]: { label: 'Preparing', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-600' },
+  [ORDER_STATUSES.READY]: { label: 'Ready for pickup', bg: 'bg-teal-100', text: 'text-teal-800', border: 'border-teal-200', dot: 'bg-teal-600' },
+  [ORDER_STATUSES.ASSIGNED]: { label: 'Partner assigned', bg: 'bg-purple-100', text: 'text-purple-800', border: 'border-purple-200', dot: 'bg-purple-600' },
+  [ORDER_STATUSES.OUT_FOR_DELIVERY]: { label: 'Out for delivery', bg: 'bg-orange-100', text: 'text-orange-800', border: 'border-orange-200', dot: 'bg-orange-600' },
+  [ORDER_STATUSES.DELIVERED]: { label: 'Delivered', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-600' },
+  [ORDER_STATUSES.CANCELLED]: { label: 'Cancelled', bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500' },
+  [ORDER_STATUSES.REFUNDED]: { label: 'Refunded', bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500' },
 };
 
 export const ORDER_TIMELINE_STEPS = [
@@ -125,27 +62,9 @@ export const PAYMENT_STATUSES = {
 };
 
 export const PAYMENT_STATUS_CONFIG = {
-  [PAYMENT_STATUSES.MOCK_PAID]: {
-    label: 'Paid (demo)',
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200',
-    dot: 'bg-emerald-600',
-  },
-  [PAYMENT_STATUSES.PENDING]: {
-    label: 'Payment pending',
-    bg: 'bg-amber-100',
-    text: 'text-amber-800',
-    border: 'border-amber-200',
-    dot: 'bg-amber-600',
-  },
-  [PAYMENT_STATUSES.REFUNDED]: {
-    label: 'Refunded',
-    bg: 'bg-gray-100',
-    text: 'text-gray-700',
-    border: 'border-gray-200',
-    dot: 'bg-gray-500',
-  },
+  [PAYMENT_STATUSES.MOCK_PAID]: { label: 'Paid (demo)', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-600' },
+  [PAYMENT_STATUSES.PENDING]: { label: 'Payment pending', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-600' },
+  [PAYMENT_STATUSES.REFUNDED]: { label: 'Refunded', bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-200', dot: 'bg-gray-500' },
 };
 
 export const RETURN_STATUSES = {
@@ -155,31 +74,27 @@ export const RETURN_STATUSES = {
 };
 
 export const RETURN_STATUS_CONFIG = {
-  [RETURN_STATUSES.REQUESTED]: {
-    label: 'Return requested',
-    bg: 'bg-amber-100',
-    text: 'text-amber-800',
-    border: 'border-amber-200',
-    dot: 'bg-amber-600',
-  },
-  [RETURN_STATUSES.APPROVED]: {
-    label: 'Return approved',
-    bg: 'bg-emerald-100',
-    text: 'text-emerald-800',
-    border: 'border-emerald-200',
-    dot: 'bg-emerald-600',
-  },
-  [RETURN_STATUSES.REJECTED]: {
-    label: 'Return rejected',
-    bg: 'bg-red-100',
-    text: 'text-red-800',
-    border: 'border-red-200',
-    dot: 'bg-red-600',
-  },
+  [RETURN_STATUSES.REQUESTED]: { label: 'Return requested', bg: 'bg-amber-100', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-600' },
+  [RETURN_STATUSES.APPROVED]: { label: 'Return approved', bg: 'bg-emerald-100', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-600' },
+  [RETURN_STATUSES.REJECTED]: { label: 'Return rejected', bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-200', dot: 'bg-red-600' },
 };
 
+export const ORDER_ACTION_CONFIGS = {
+  ACCEPTED: { title: 'Accept order?', confirmText: 'Accept order', msg: (id, name, amt) => `Accept order #${id} from ${name} for ${amt}?` },
+  PREPARING: { title: 'Start preparing?', confirmText: 'Start preparing', msg: (id) => `Move order #${id} to Preparing? Kitchen will start cooking.` },
+  READY: { title: 'Mark ready for pickup?', confirmText: 'Mark ready', msg: (id) => `Mark order #${id} as Ready for delivery partner pickup?` },
+};
+
+export const COUNTRY_CODES = [
+  { value: '+91', label: '+91 (IN)' },
+  { value: '+1', label: '+1 (US)' },
+  { value: '+44', label: '+44 (UK)' },
+  { value: '+61', label: '+61 (AU)' },
+  { value: '+971', label: '+971 (AE)' },
+];
+
 export const FIELD_LIMITS = {
-  NAME_MIN: 1,
+  NAME_MIN: 2,
   NAME_MAX: 100,
   EMAIL_MAX: 200,
   PASSWORD_MIN: 8,
@@ -187,6 +102,11 @@ export const FIELD_LIMITS = {
   COUNTRY_CODE: '+91',
   PHONE_MIN: 6,
   PHONE_MAX: 15,
+  HOUSE_MAX: 100,
+  CITY_MAX: 100,
+  STATE_MAX: 100,
+  COUNTRY_MAX: 100,
+  MAX_SAVED_ADDRESSES: 10,
   RESTAURANT_DESC_MAX: 300,
   RESTAURANT_CUISINE_MAX: 100,
   DISH_NAME_MAX: 100,

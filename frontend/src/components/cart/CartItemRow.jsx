@@ -41,10 +41,9 @@ export default function CartItemRow({ item, onIncrease, onDecrease, onRemove }) 
 
           <button
             type="button"
-            disabled={item.quantity >= 20}
             onClick={() => onIncrease(item.menu_item_id)}
             aria-label={`Increase quantity of ${item.name}`}
-            className="p-1 px-2 hover:bg-brand-dark transition-colors cursor-pointer text-white flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-1 px-2 hover:bg-brand-dark transition-colors cursor-pointer text-white flex items-center justify-center focus:outline-none"
           >
             <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
           </button>

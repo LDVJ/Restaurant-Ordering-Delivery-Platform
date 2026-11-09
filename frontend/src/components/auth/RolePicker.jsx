@@ -24,9 +24,17 @@ const ROLE_OPTIONS = [
 
 /**
  * RolePicker Component
- * Three compact selectable cards for role selection
+ * Three compact selectable cards for role selection.
+ * Supports both value/onChange and selectedRole/onSelect props.
  */
-export default function RolePicker({ value, onChange }) {
+export default function RolePicker({ value, selectedRole, onChange, onSelect }) {
+  const currentRole = value ?? selectedRole ?? ROLES.CUSTOMER;
+
+  const handleClick = (role) => {
+    if (onChange) onChange(role);
+    if (onSelect) onSelect(role);
+  };
+
   return (
     <div className="space-y-1 text-left">
       <label className="text-xs font-semibold text-text-main block">
@@ -35,14 +43,14 @@ export default function RolePicker({ value, onChange }) {
 
       <div className="grid grid-cols-3 gap-2">
         {ROLE_OPTIONS.map((opt) => {
-          const isSelected = value === opt.role;
+          const isSelected = currentRole === opt.role;
           const Icon = opt.icon;
 
           return (
             <button
               key={opt.role}
               type="button"
-              onClick={() => onChange(opt.role)}
+              onClick={() => handleClick(opt.role)}
               className={`relative flex flex-col items-start p-2 sm:p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                 isSelected
                   ? 'border-brand bg-brand-tint/40 ring-1.5 ring-brand shadow-2xs'

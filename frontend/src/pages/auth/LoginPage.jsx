@@ -5,7 +5,7 @@ import { Mail } from 'lucide-react';
 
 import { useAuth } from '../../context/AuthContext';
 import { getErrorMessage } from '../../utils/errors';
-import { ROLE_HOME_PATHS } from '../../utils/constants';
+import { ROLES, ROLE_HOME_PATHS } from '../../utils/constants';
 
 import AuthLayout from '../../components/auth/AuthLayout';
 import PasswordInput from '../../components/auth/PasswordInput';
@@ -81,8 +81,19 @@ export default function LoginPage() {
       const user = await login(formData.email, formData.password);
       toast.success(`Welcome back, ${user.name}!`);
 
-      const destination =
-        location.state?.from?.pathname || ROLE_HOME_PATHS[user.role] || '/';
+      // Validate attempted destination matches the user's role
+      const attempted = location.state?.from?.pathname;
+      const isAllowedAttempt =
+        attempted &&
+        (user.role === ROLES.CUSTOMER
+          ? attempted.startsWith('/restaurants') || attempted === '/cart'
+          : user.role === ROLES.RESTAURANT_OWNER
+          ? attempted.startsWith('/owner')
+          : attempted.startsWith('/delivery'));
+
+      const destination = isAllowedAttempt
+        ? attempted
+        : ROLE_HOME_PATHS[user.role] || '/';
       navigate(destination, { replace: true });
     } catch (error) {
       const errorMsg = getErrorMessage(error);

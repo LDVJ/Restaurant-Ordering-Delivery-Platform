@@ -46,13 +46,12 @@ export default function AddToCartButton({ dish, restaurant, className = '' }) {
 
         <button
           type="button"
-          disabled={quantity >= 20}
           onClick={(e) => {
             e.stopPropagation();
             increase(dish.id);
           }}
           aria-label={`Increase quantity of ${dish.name}`}
-          className="p-1 px-2.5 hover:bg-brand-dark transition-colors cursor-pointer text-white flex items-center justify-center focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+          className="p-1 px-2.5 hover:bg-brand-dark transition-colors cursor-pointer text-white flex items-center justify-center focus:outline-none"
         >
           <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
         </button>

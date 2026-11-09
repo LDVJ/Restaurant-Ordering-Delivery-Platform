@@ -41,10 +41,7 @@ export default function CartPage() {
   };
 
   const handleCheckout = () => {
-    // Section 14: customer checkout / order placement is the next feature step
-    toast('Checkout flow is coming in the next update!', {
-      icon: '🚀',
-    });
+    navigate('/checkout');
   };
 
   if (items.length === 0) {

@@ -30,8 +30,6 @@ export async function register(data) {
  * @returns {Promise<Object>} { access_token, token_type, user }
  */
 export async function login({ email, password }) {
-  // Backend uses OAuth2PasswordRequestForm expecting x-www-form-urlencoded
-  // with 'username' holding the email
   const params = new URLSearchParams();
   params.append('username', email.trim().toLowerCase());
   params.append('password', password);
@@ -51,5 +49,21 @@ export async function login({ email, password }) {
  */
 export async function getMe() {
   const response = await axiosClient.get('/auth/me');
+  return response.data;
+}
+
+/**
+ * Update user profile
+ * @param {Object} data - { name, country_code, phone_number }
+ * @returns {Promise<Object>} Updated user object
+ */
+export async function updateProfile(data) {
+  const payload = {
+    name: data.name.trim(),
+    country_code: data.country_code || '+91',
+    phone_number: data.phone_number.trim(),
+  };
+
+  const response = await axiosClient.put('/auth/me', payload);
   return response.data;
 }

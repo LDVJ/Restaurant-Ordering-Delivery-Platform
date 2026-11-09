@@ -5,22 +5,12 @@ import { getErrorMessage } from '../../utils/errors';
 import useDebounce from '../../hooks/useDebounce';
 
 import RestaurantCard from '../../components/restaurant/RestaurantCard';
+import CuisineChips from '../../components/restaurant/CuisineChips';
 import StickyCartBar from '../../components/restaurant/StickyCartBar';
 import Pagination from '../../components/ui/Pagination';
 import Skeleton from '../../components/ui/Skeleton';
 import EmptyState from '../../components/ui/EmptyState';
 import ErrorState from '../../components/ui/ErrorState';
-
-const CUISINES = [
-  'All',
-  'North Indian',
-  'South Indian',
-  'Chinese',
-  'Biryani',
-  'Fast Food',
-  'Desserts',
-  'Beverages',
-];
 
 export default function RestaurantsPage() {
   const [restaurants, setRestaurants] = useState([]);
@@ -29,6 +19,8 @@ export default function RestaurantsPage() {
 
   const [search, setSearch] = useState('');
   const [cuisine, setCuisine] = useState('All');
+  const [cuisines, setCuisines] = useState([]);
+  const [isCuisinesLoading, setIsCuisinesLoading] = useState(true);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -36,6 +28,34 @@ export default function RestaurantsPage() {
 
   const debouncedSearch = useDebounce(search, 300);
 
+  // Fetch dynamic cuisines on mount (GET /restaurants/cuisines)
+  useEffect(() => {
+    let ignore = false;
+
+    restaurantApi
+      .getCuisines()
+      .then((data) => {
+        if (!ignore) {
+          setCuisines(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch(() => {
+        if (!ignore) {
+          setCuisines([]); // Fallback to "All" only without blocking page
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setIsCuisinesLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Fetch active restaurants with filters
   useEffect(() => {
     let ignore = false;
 
@@ -135,26 +155,13 @@ export default function RestaurantsPage() {
         )}
       </div>
 
-      {/* Cuisine Filter Chips */}
-      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
-        {CUISINES.map((item) => {
-          const isSelected = cuisine === item;
-          return (
-            <button
-              key={item}
-              type="button"
-              onClick={() => handleCuisineChange(item)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors cursor-pointer border ${
-                isSelected
-                  ? 'bg-brand text-white border-brand shadow-xs'
-                  : 'bg-white text-muted-text border-border hover:border-gray-300 hover:text-text-main'
-              }`}
-            >
-              {item}
-            </button>
-          );
-        })}
-      </div>
+      {/* Dynamic Cuisine Filter Chips */}
+      <CuisineChips
+        cuisines={cuisines}
+        selected={cuisine}
+        onSelect={handleCuisineChange}
+        isLoading={isCuisinesLoading}
+      />
 
       {/* Content States: Loading, Error, Empty, Data */}
       {isLoading ? (

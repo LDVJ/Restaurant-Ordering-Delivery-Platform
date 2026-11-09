@@ -81,3 +81,37 @@ export function colorFromName(name) {
   const index = Math.abs(hash) % AVATAR_PALETTE.length;
   return AVATAR_PALETTE[index];
 }
+
+/**
+ * Format order ID into a short readable order number (first 8 characters, uppercase)
+ * e.g. "cb_ord_01" -> "#CB_ORD_0"
+ */
+export function formatOrderNumber(id) {
+  if (!id || typeof id !== 'string') return '';
+  return `#${id.slice(0, 8).toUpperCase()}`;
+}
+
+/**
+ * Format relative time elapsed since date
+ * e.g. "5m ago", "2h ago", "1d ago"
+ */
+export function formatTimeSince(dateString) {
+  if (!dateString) return '';
+  const diffMs = Date.now() - new Date(dateString).getTime();
+  const mins = Math.max(1, Math.floor(diffMs / (60 * 1000)));
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+/**
+ * Checks whether an order in PLACED or ACCEPTED status has not been updated for > 15 minutes
+ */
+export function isOrderDelayed(status, statusUpdatedAt) {
+  if (status !== 'PLACED' && status !== 'ACCEPTED') return false;
+  if (!statusUpdatedAt) return false;
+  return Date.now() - new Date(statusUpdatedAt).getTime() > 15 * 60 * 1000;
+}
+
+
