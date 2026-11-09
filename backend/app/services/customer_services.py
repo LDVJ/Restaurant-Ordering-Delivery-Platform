@@ -23,7 +23,13 @@ def escape_like(text: str) -> str:
     """Make %, _ and backslash in user text match literally inside LIKE."""
     return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
-async def get_restaurant_list_service(db : AsyncSession, page : int, page_size : int, search : str = None, cuisine : str = None) -> dict:
+async def get_restaurant_list_service(
+        db : AsyncSession, 
+        page : int, 
+        page_size : int, 
+        search : str = None, 
+        cuisine : str = None
+    ) -> dict:
     filters = [Restaurants.is_active.is_(True)]
 
     search = (search or "").strip()
@@ -86,7 +92,10 @@ async def get_restaurant_list_service(db : AsyncSession, page : int, page_size :
         "total_pages" : total_pages
     }
 
-async def get_restaurant_info_service(db : AsyncSession, restaurant_id : str) -> dict:
+async def get_restaurant_info_service(
+        db : AsyncSession, 
+        restaurant_id : str
+    ) -> dict:
     restaurant = await _load_restaurant(db=db, restaurant_id=restaurant_id)
 
     address = f"{restaurant.address.house}, {restaurant.address.city}, {restaurant.address.state}, {restaurant.address.country}"
@@ -111,19 +120,39 @@ async def get_restaurant_info_service(db : AsyncSession, restaurant_id : str) ->
         "review_count" : result.review_count
     }
 
-async def get_menu_items_service(db : AsyncSession, restaurant_id : str, min_price : Decimal, max_price : Decimal, page : int, page_size : int, search : str) -> dict:
+async def get_cuisines_service(db : AsyncSession) -> list[str]:
+    stmt = select(Restaurants.cuisine).where(
+        Restaurants.is_active.is_(True)
+        ).distinct().order_by(Restaurants.cuisine)
+
+    return list((await db.scalars(stmt)).all())
+
+async def get_menu_items_service(
+        db : AsyncSession, 
+        restaurant_id : str, 
+        min_price : Decimal, 
+        max_price : Decimal,
+        page : int, 
+        page_size : int, 
+        search : str
+    ) -> dict:
     restaurant = await _load_restaurant(db=db, restaurant_id=restaurant_id)
 
     filters = [MenuItems.restaurant_id == restaurant.id]
     sr = (search or "").strip()
     if sr:
-        filters.append(MenuItems.name.ilike(f"{escape_like(sr)}", escape="\\"))
+        filters.append(MenuItems.name.ilike(f"%{escape_like(sr)}%", escape="\\"))
     if min_price is not None:
         filters.append(MenuItems.price >= min_price)
     if max_price is not None:
         filters.append(MenuItems.price <= max_price)
 
-    total = (await db.execute(select(func.count(MenuItems.id)).where(*filters))) or 0
+    if min_price and max_price:
+        if min_price > max_price:
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="min price must be less than max price")
+        
+
+    total = (await db.scalar(select(func.count(MenuItems.id)).where(*filters))) or 0
     total_pages = math.ceil(total/page_size)
 
     stmt = select(

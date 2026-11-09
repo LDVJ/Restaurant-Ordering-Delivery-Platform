@@ -11,7 +11,8 @@ from app.schemas import (
     CreateRestaurant,
     UpdateRestaurant,
     UpdateRestaurantAdress,
-    CreateMenuItem
+    CreateMenuItem,
+    UpdateMenuitem
 )
 import math
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -201,3 +202,40 @@ async def create_new_menu_item_service(payload : CreateMenuItem, owner_id : str,
     await db.refresh(new_item)
 
     return new_item
+
+async def update_menu_item_service(id : str, payload : dict, db : AsyncSession, owner_id : str):
+    restaurant = await _load_owner_restaurant(db = db, owner_id=owner_id)
+    restaurant_id = restaurant.id
+
+    menu_item = (await db.scalar(select(MenuItems).where(
+        MenuItems.id == id,
+        MenuItems.restaurant_id == restaurant_id
+    )))
+
+    if menu_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+
+    new_name = payload.get("name")
+    if new_name is not None and new_name.lower() != menu_item.name.lower():
+        duplicate = await db.scalar(select(MenuItems.id).where(
+            MenuItems.restaurant_id == restaurant.id,
+            func.lower(MenuItems.name) == new_name.lower(),
+            MenuItems.id != menu_item.id
+        ))
+        if duplicate:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
+                            detail="A dish with this name already exists")
+
+    for key, value in payload.items():
+        setattr(menu_item, key, value)
+
+    try:
+        await db.commit()
+    
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, 
+                            detail="Couldn't update the dish. Please try again later")
+    await db.refresh(menu_item)
+
+    return menu_item

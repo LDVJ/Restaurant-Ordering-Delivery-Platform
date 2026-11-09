@@ -6,7 +6,9 @@ from app.schemas import (
     UpdateRestaurantAdress,
     OwnerMenuItemsResponse,
     OwnerMenuItem,
-    CreateMenuItem
+    CreateMenuItem,
+    MenuItems,
+    UpdateMenuitem
     )
 from app.oauth2 import owner_only, CurrentOwner
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +19,8 @@ from app.services.owner_services import (
     update_restaurant, 
     update_restaurant_address,
     get_all_menu_items_services,
-    create_new_menu_item_service
+    create_new_menu_item_service,
+    update_menu_item_service
 )
 
 
@@ -44,16 +47,44 @@ async def put_restaurant(payload : UpdateRestaurant, owner : CurrentOwner, db : 
 
     return updated_restaurant
 
-@router.put("/restaurant/address", response_model=RestaurantResponse, status_code=status.HTTP_201_CREATED)
+@router.put("/restaurant/address", response_model=RestaurantResponse, status_code=status.HTTP_200_OK)
 async def put_restaurant_address(payload : UpdateRestaurantAdress, owner : CurrentOwner, db : AsyncSession = Depends(get_db)):
     updated_restaurant = await update_restaurant_address(payload=payload, db=db, owner_id=owner.id)
-
     return updated_restaurant
 
 @router.get("/menu", response_model=OwnerMenuItemsResponse, status_code=status.HTTP_200_OK)
-async def get_all_menu_items(owner : CurrentOwner, db : AsyncSession = Depends(get_db), page : int = Query(1, ge=1), page_size : int = Query(9, ge=1, lt=50)):
-    return await get_all_menu_items_services(owner_id = owner.id, db = db , page = page, page_size = page_size)
+async def get_all_menu_items(
+    owner : CurrentOwner, 
+    db : AsyncSession = Depends(get_db), 
+    page : int = Query(1, ge=1), 
+    page_size : int = Query(20, ge=1, lt=50)
+    ):
+    return await get_all_menu_items_services(
+        owner_id = owner.id, 
+        db = db , 
+        page = page, 
+        page_size = page_size
+        )
 
-@router.post("/menu", response_model=OwnerMenuItem, status_code=status.HTTP_201_CREATED)
+@router.post("/menu", response_model=OwnerMenuItem, status_code=status.HTTP_200_OK)
 async def create_new_menu_item(payload : CreateMenuItem, owner : CurrentOwner, db : AsyncSession = Depends(get_db)):
-    return await create_new_menu_item_service(payload=payload, owner_id = owner.id, db = db)
+    return await create_new_menu_item_service(
+        payload=payload, 
+        owner_id = owner.id, 
+        db = db
+        )
+
+@router.patch("/menu/{id}", response_model=MenuItems, status_code=status.HTTP_200_OK)
+async def update_menu_item(
+    id : str, 
+    payload : UpdateMenuitem,
+    owner : CurrentOwner ,
+    db : AsyncSession = Depends(get_db)
+    ):
+
+    return await update_menu_item_service(
+        id = id, 
+        payload = payload.model_dump(exclude_unset=True),
+        db = db,
+        owner_id = owner.id
+    )

@@ -7,9 +7,10 @@ from pydantic import (
 )
 from typing import Annotated
 from app.enums.userEnum import UsersRole
+from string import capwords
 
-CountryCode = Annotated[str, StringConstraints(pattern=r"\+\d{1,4}$")]
-PhoenNumber = Annotated[str, StringConstraints(pattern=r"\d{6,15}$")]
+CountryCode = Annotated[str, StringConstraints(pattern=r"^\+\d{1,4}$")]
+PhoenNumber = Annotated[str, StringConstraints(pattern=r"^\d{6,15}$")]
 
 
 class TokenData(BaseModel):
@@ -134,6 +135,11 @@ class CreateRestaurant(BaseModel):
     @property
     def phone_e164(self) -> str:
         return f"{self.country_code}{self.phone_number}"
+
+    @field_validator("cuisine", mode="before")
+    @classmethod
+    def normalize_cuisine(cls, value):
+        return capwords(value) if isinstance(value, str) else value
 
 class CreateMenuItem(BaseModel):
     name : str
@@ -282,3 +288,23 @@ class OwnerMenuItemsResponse(BaseModel):
     page : int
     page_size : int
     total_pages : int    
+
+class UpdateMenuitem(BaseModel):
+    name : str | None = Field(default=None, min_length=1, max_length=100)
+    description : str | None = Field(default=None, min_length=1, max_length=200)
+    price : Decimal | None = Field(default= None, gt=0, max_digits=7, decimal_places=2)
+    is_available : bool | None = None
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    @model_validator(mode="after")
+    def reject_empty_or_null(self):
+        sent = self.model_fields_set
+        if not sent:
+            raise ValueError("Send at least one field to update")
+        for field in sent:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
+
+    

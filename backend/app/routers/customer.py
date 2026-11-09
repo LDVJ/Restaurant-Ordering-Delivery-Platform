@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.services.customer_services import (
     get_restaurant_list_service, 
     get_restaurant_info_service,
-    get_menu_items_service
+    get_menu_items_service,
+    get_cuisines_service
     )
 from decimal import Decimal
 
@@ -24,7 +25,7 @@ router = APIRouter(
 async def get_retaurant_list(
     db : AsyncSession = Depends(get_db), 
     page : int = Query(1, ge=1), 
-    page_size : int =  Query(9, ge=1, le=50), 
+    page_size : int =  Query(20, ge=1, le=50), 
     search : str = None, 
     cuisine : str = None
 ):
@@ -35,6 +36,11 @@ async def get_retaurant_list(
         search=search, 
         cuisine=cuisine
         )
+
+@router.get("/cuisines", response_model=list[str], status_code = status.HTTP_200_OK)
+async def get_cuisines(db : AsyncSession = Depends(get_db)):
+    return await get_cuisines_service(db = db)
+
 
 @router.get("/{restaurant_id}", response_model=CustomerRestaurantInfoResponse, status_code=status.HTTP_200_OK)
 async def get_restaurant_info(restaurant_id : str, db : AsyncSession = Depends(get_db)):
@@ -47,8 +53,8 @@ async def get_menu_items(
     search : str = None, 
     min_price : Decimal | None = Query(None, ge=0), 
     max_price : Decimal | None = Query(None, ge=0), 
-    page : int = Query(1, gt=1), 
-    page_size : int = Query(9, gt=1, le=50)
+    page : int = Query(1, ge=1), 
+    page_size : int = Query(20, ge=1, le=50)
 ):
     return await get_menu_items_service(
         db= db, 
@@ -59,3 +65,4 @@ async def get_menu_items(
         page = page, 
         page_size= page_size
         )
+
