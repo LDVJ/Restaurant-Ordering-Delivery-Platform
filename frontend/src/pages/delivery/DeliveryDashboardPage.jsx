@@ -1,87 +1,196 @@
-import { Link } from 'react-router-dom';
-import { Bike, Sparkles, UserCheck } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
+import { Bike } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import Badge from '../../components/ui/Badge';
-import Button from '../../components/ui/Button';
+import { useConfirm } from '../../context/ConfirmContext';
+import { usePolling } from '../../hooks/usePolling';
+import * as deliveryApi from '../../api/deliveryApi';
+import { getErrorMessage } from '../../utils/errors';
+import { formatOrderNumber } from '../../utils/format';
+import Pagination from '../../components/ui/Pagination';
+import Skeleton from '../../components/ui/Skeleton';
+import EmptyState from '../../components/ui/EmptyState';
+import DeliveryHeader from '../../components/delivery/DeliveryHeader';
+import DeliveryOrderCard from '../../components/delivery/DeliveryOrderCard';
+import DeliveryOrderDetailModal from '../../components/delivery/DeliveryOrderDetailModal';
 
-/**
- * DeliveryDashboardPage (Delivery Partner Home Placeholder)
- * Sourced from Section 7 & 11 of Frontend Guide
- */
 export default function DeliveryDashboardPage() {
   const { user } = useAuth();
+  const confirm = useConfirm();
+
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
+  const [orders, setOrders] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [actionLoadingId, setActionLoadingId] = useState(null);
+
+  const fetchOrders = useCallback(async (isSilent = false) => {
+    try {
+      const params = { page, page_size: 10 };
+      if (activeTab === 'history') params.status = 'DELIVERED';
+      const data = await deliveryApi.getDeliveryOrders(params);
+      setOrders(data.items || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.total_pages || 1);
+      setError(null);
+    } catch (err) {
+      if (!isSilent) setError(getErrorMessage(err));
+    } finally {
+      if (!isSilent) setIsLoading(false);
+    }
+  }, [activeTab, page]);
+
+  useEffect(() => {
+    let ignore = false;
+    async function load() {
+      try {
+        const params = { page, page_size: 10 };
+        if (activeTab === 'history') params.status = 'DELIVERED';
+        const data = await deliveryApi.getDeliveryOrders(params);
+        if (!ignore) {
+          setOrders(data.items || []);
+          setTotal(data.total || 0);
+          setTotalPages(data.total_pages || 1);
+          setError(null);
+        }
+      } catch (err) {
+        if (!ignore) setError(getErrorMessage(err));
+      } finally {
+        if (!ignore) setIsLoading(false);
+      }
+    }
+    load();
+    return () => { ignore = true; };
+  }, [activeTab, page]);
+
+  usePolling(() => fetchOrders(true), 30000);
+
+  const handleOpenDetail = async (orderSummary) => {
+    try {
+      const full = await deliveryApi.getDeliveryOrderById(orderSummary.id);
+      setSelectedOrder(full);
+    } catch {
+      setSelectedOrder(orderSummary);
+    }
+    setIsDetailOpen(true);
+  };
+
+  const handleStartDelivery = async (order) => {
+    const shortId = formatOrderNumber(order.id);
+    const ok = await confirm({
+      title: 'Start delivery?',
+      message: `Confirm pickup for ${shortId} from ${order.restaurant?.name}? You will now be en route to the customer.`,
+      confirmText: 'Start delivery',
+      cancelText: 'Cancel',
+    });
+    if (!ok) return;
+
+    setActionLoadingId(order.id);
+    try {
+      const updated = await deliveryApi.updateDeliveryStatus(order.id, 'OUT_FOR_DELIVERY');
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: 'OUT_FOR_DELIVERY' } : o)));
+      if (selectedOrder?.id === order.id) setSelectedOrder(updated);
+      toast.success('Delivery started! En route to customer');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleMarkDelivered = async (order) => {
+    const shortId = formatOrderNumber(order.id);
+    const ok = await confirm({
+      title: 'Mark as delivered?',
+      message: `Confirm ${shortId} has been successfully delivered to ${order.customer_name}?`,
+      confirmText: 'Confirm delivery',
+      cancelText: 'Keep active',
+    });
+    if (!ok) return;
+
+    setActionLoadingId(order.id);
+    try {
+      const updated = await deliveryApi.updateDeliveryStatus(order.id, 'DELIVERED');
+      if (activeTab === 'active') {
+        setOrders((prev) => prev.filter((o) => o.id !== order.id));
+        setTotal((prev) => Math.max(0, prev - 1));
+      } else {
+        setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: 'DELIVERED' } : o)));
+      }
+      if (selectedOrder?.id === order.id) setSelectedOrder(updated);
+      toast.success('Order marked delivered successfully!');
+    } catch (err) {
+      toast.error(getErrorMessage(err));
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   return (
-    <div className="space-y-6 text-left">
-      {/* Welcome Banner */}
-      <div className="bg-white rounded-2xl border border-border p-6 sm:p-8 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Badge variant="brand">Delivery Partner Portal</Badge>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-text-main">
-              Welcome, {user?.name || 'Rider'}!
-            </h1>
-            <p className="text-sm text-muted-text mt-1">
-              You are signed in as a <strong className="text-text-main">Delivery Partner</strong> ({user?.email}).
-            </p>
-          </div>
+    <div className="space-y-6 text-left max-w-5xl mx-auto pb-16">
+      <DeliveryHeader
+        user={user}
+        activeTab={activeTab}
+        activeCount={total}
+        onTabChange={(tab) => { setActiveTab(tab); setPage(1); setIsLoading(true); }}
+      />
 
-          <div className="flex items-center gap-3">
-            <Link to="/ui-demo">
-              <Button variant="outline" size="sm" icon={Sparkles}>
-                View UI Demo
-              </Button>
-            </Link>
-          </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-56 w-full rounded-2xl" />
+          <Skeleton className="h-56 w-full rounded-2xl" />
         </div>
-      </div>
-
-      {/* User Details & Next Phase Card */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border border-border p-6 shadow-xs space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-brand-tint text-brand">
-              <UserCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-text-main text-sm">Rider Account Verified</h3>
-              <p className="text-xs text-muted-text">Auth session active</p>
-            </div>
+      ) : error ? (
+        <div className="p-6 bg-red-50 border border-red-200 text-danger rounded-xl text-xs">{error}</div>
+      ) : orders.length === 0 ? (
+        <EmptyState
+          icon={Bike}
+          title={activeTab === 'active' ? 'No active deliveries' : 'No delivery history'}
+          description={
+            activeTab === 'active'
+              ? 'You have no assigned orders waiting for delivery right now.'
+              : 'You have not completed any deliveries yet.'
+          }
+          actionLabel={activeTab === 'history' ? 'Check active queue' : undefined}
+          onAction={activeTab === 'history' ? () => { setActiveTab('active'); setPage(1); setIsLoading(true); } : undefined}
+        />
+      ) : (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {orders.map((order) => (
+              <DeliveryOrderCard
+                key={order.id}
+                order={order}
+                onOpenDetail={handleOpenDetail}
+                onStartDelivery={handleStartDelivery}
+                onMarkDelivered={handleMarkDelivered}
+                isActionLoading={actionLoadingId === order.id}
+              />
+            ))}
           </div>
 
-          <div className="space-y-2 text-xs border-t border-border pt-3">
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Role:</span>
-              <span className="font-semibold text-text-main">{user?.role}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Email:</span>
-              <span className="font-semibold text-text-main">{user?.email}</span>
-            </div>
-            <div className="flex justify-between py-1">
-              <span className="text-muted-text">Phone:</span>
-              <span className="font-semibold text-text-main">{user?.phone_e164 || user?.phone_number}</span>
-            </div>
-          </div>
+          {totalPages > 1 && (
+            <Pagination currentPage={page} totalPages={totalPages} totalItems={total} pageSize={10} onPageChange={(p) => { setPage(p); setIsLoading(true); }} />
+          )}
         </div>
+      )}
 
-        <div className="md:col-span-2 bg-white rounded-xl border border-border p-6 shadow-xs flex flex-col justify-center items-start text-left">
-          <div className="w-12 h-12 rounded-xl bg-orange-50 text-brand flex items-center justify-center mb-3">
-            <Bike className="w-6 h-6" />
-          </div>
-          <h2 className="text-lg font-bold text-text-main mb-1">
-            Active Deliveries & Trip Queue
-          </h2>
-          <p className="text-sm text-muted-text max-w-lg mb-4 leading-relaxed">
-            Authentication is verified. The next step will display your assigned campus delivery pickups, customer drop-off details, tap-to-call links, and status transitions (*Out for delivery* → *Delivered*).
-          </p>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-            ✓ Connected to backend API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}
-          </div>
-        </div>
-      </div>
+      {isDetailOpen && selectedOrder && (
+        <DeliveryOrderDetailModal
+          isOpen={isDetailOpen}
+          onClose={() => setIsDetailOpen(false)}
+          order={selectedOrder}
+          onStartDelivery={handleStartDelivery}
+          onMarkDelivered={handleMarkDelivered}
+          isActionLoading={actionLoadingId === selectedOrder.id}
+        />
+      )}
     </div>
   );
 }

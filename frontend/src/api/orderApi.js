@@ -18,16 +18,35 @@ export function isMocked(group) {
 const USE_MOCK_ORDERS = isMocked('orders');
 
 /**
- * Place a new customer order
- * In mock mode: accepts cartSnapshot (mock-only) to derive prices and names.
- * In real API mode: cartSnapshot is safely ignored per API_CONTRACT.
+ * Non-blocking probe helper: fires real HTTP call so it appears in DevTools
+ * Network tab without blocking or failing the mock-backed UI flow.
  */
-export async function createOrder(payload, cartSnapshot) {
-  if (USE_MOCK_ORDERS) {
-    return mockDb.createOrder(payload, cartSnapshot);
+async function probeRealApi(requestFn) {
+  try {
+    await requestFn();
+  } catch (err) {
+    console.debug(
+      '[Probe Call]:',
+      err?.config?.method?.toUpperCase(),
+      err?.config?.url,
+      '->',
+      err?.response?.status || 'pending backend implementation'
+    );
   }
+}
+
+/**
+ * Place a new customer order
+ * Dynamic backend integration: always calls real POST /orders
+ */
+export async function createOrder(payload) {
   const response = await axiosClient.post('/orders', payload);
-  return response.data;
+  const realOrder = response.data;
+  // If mockDb is active for listing, sync the placed real order into mockDb storage
+  if (mockDb?.saveRealOrder) {
+    mockDb.saveRealOrder(realOrder);
+  }
+  return realOrder;
 }
 
 /**
@@ -36,6 +55,7 @@ export async function createOrder(payload, cartSnapshot) {
  */
 export async function getOrders(params = {}) {
   if (USE_MOCK_ORDERS) {
+    probeRealApi(() => axiosClient.get('/orders', { params }));
     return mockDb.listOrders(params);
   }
   const response = await axiosClient.get('/orders', { params });
@@ -47,6 +67,7 @@ export async function getOrders(params = {}) {
  */
 export async function getOrderById(id) {
   if (USE_MOCK_ORDERS) {
+    probeRealApi(() => axiosClient.get(`/orders/${id}`));
     return mockDb.getOrder(id);
   }
   const response = await axiosClient.get(`/orders/${id}`);
@@ -58,6 +79,7 @@ export async function getOrderById(id) {
  */
 export async function cancelOrder(id) {
   if (USE_MOCK_ORDERS) {
+    probeRealApi(() => axiosClient.post(`/orders/${id}/cancel`));
     return mockDb.cancelOrder(id);
   }
   const response = await axiosClient.post(`/orders/${id}/cancel`);
@@ -69,6 +91,7 @@ export async function cancelOrder(id) {
  */
 export async function submitReview(orderId, payload) {
   if (USE_MOCK_ORDERS) {
+    probeRealApi(() => axiosClient.post(`/orders/${orderId}/review`, payload));
     return mockDb.submitReview(orderId, payload);
   }
   const response = await axiosClient.post(`/orders/${orderId}/review`, payload);
@@ -80,6 +103,7 @@ export async function submitReview(orderId, payload) {
  */
 export async function requestReturn(orderId, payload) {
   if (USE_MOCK_ORDERS) {
+    probeRealApi(() => axiosClient.post(`/orders/${orderId}/return`, payload));
     return mockDb.requestReturn(orderId, payload);
   }
   const response = await axiosClient.post(`/orders/${orderId}/return`, payload);

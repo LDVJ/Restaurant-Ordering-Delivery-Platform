@@ -18,11 +18,15 @@ function createOrder({
   id, status, payment_status = 'MOCK_PAID', bill_amount, created_mins, updated_mins = created_mins,
   customer_name, customer_phone = '+919876543210', items, partner = null, return_request = null, review = null,
 }) {
+  const createdAt = typeof created_mins === 'number' ? minutesAgo(created_mins) : created_mins;
+  const statusUpdatedAt = typeof updated_mins === 'number' ? minutesAgo(updated_mins) : updated_mins;
+  const deliveredAt = status === 'DELIVERED' || status === 'REFUNDED' ? statusUpdatedAt : null;
+
   return {
     id, status, payment_status, bill_amount,
-    created_at: typeof created_mins === 'number' ? minutesAgo(created_mins) : created_mins,
-    status_updated_at: typeof updated_mins === 'number' ? minutesAgo(updated_mins) : updated_mins,
-    delivered_at: status === 'DELIVERED' || status === 'REFUNDED' ? minutesAgo(updated_mins || 60) : null,
+    created_at: createdAt,
+    status_updated_at: statusUpdatedAt,
+    delivered_at: deliveredAt,
     delivery_address: 'Room 302, Hostel B, North Campus', contact_phone: customer_phone,
     restaurant: { id: 'res_spice', name: 'Spice Hub', address: '5 Market Street, Ghaziabad', phone: '+919123456780' },
     items, customer: { name: customer_name, phone: customer_phone }, customer_name,

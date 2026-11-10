@@ -453,7 +453,7 @@ class OrderUserInfo(BaseModel):
     name : str
     phone : str
 
-class OrderResponse(BaseModel):
+class CustomerOrderResponse(BaseModel):
 
     model_config = ConfigDict(
         from_attributes=True
@@ -462,7 +462,7 @@ class OrderResponse(BaseModel):
     id : str
     status : OrderStatus
     payment_status : PaymentStatus
-    bill_amount : str
+    bill_amount : Decimal
     created_at : datetime
     status_updated_at : datetime | None = None
     delivered_at : datetime | None = None
@@ -472,6 +472,34 @@ class OrderResponse(BaseModel):
     items : list[CustomerOrderItemResponse]
     # customer : OrderUserInfo 
     delivery_partner : UserResponse | None = None
-    review : Decimal | None
+    review : int | None = None
     return_request : ReturnRequestStatus | None = None
 
+class OwnerOrderResponse(CustomerOrderResponse):
+    customer : OrderUserInfo
+
+
+class AllOwnerOrderResponse(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    items : list[OwnerOrderResponse]
+
+class CustomerAllOrders(BaseModel):
+    id : str
+    status : OrderStatus
+    payment_status : PaymentStatus
+    bill_amount : str
+    created_at : datetime
+    restaurant : OrderRestaurant
+    items : list[CustomerOrderItemResponse]
+    return_status : ReturnRequestStatus | None = None
+    has_review : int | None = None
+
+class CustomerAllOrdersResponse(BaseModel):
+    items :  list[CustomerAllOrders]
+    total : int
+    page : int
+    page_size : int
+    total_page : int

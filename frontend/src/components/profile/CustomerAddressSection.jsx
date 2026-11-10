@@ -51,12 +51,9 @@ export default function CustomerAddressSection() {
   const handleMakeDefault = async (address) => {
     setIsActionLoading(true);
     try {
-      const updated = await addressApi.makeDefaultAddress(address.id);
-      setAddresses((prev) =>
-        prev
-          .map((a) => (a.id === updated.id ? { ...a, is_default: true } : { ...a, is_default: false }))
-          .sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0))
-      );
+      await addressApi.makeDefaultAddress(address.id);
+      const fresh = await addressApi.getAddresses();
+      setAddresses(fresh);
       toast.success('Default address updated');
     } catch (err) {
       toast.error(getErrorMessage(err));

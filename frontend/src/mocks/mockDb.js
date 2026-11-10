@@ -376,4 +376,17 @@ export const mockDb = {
   getRawOrders() {
     return loadOrders();
   },
+
+  /**
+   * Helper to sync real backend order into mock storage so it appears in mock lists
+   */
+  saveRealOrder(realOrder) {
+    try {
+      const orders = loadOrders();
+      orders.unshift(realOrder);
+      saveOrders(orders);
+    } catch {
+      // ignore
+    }
+  },
 };

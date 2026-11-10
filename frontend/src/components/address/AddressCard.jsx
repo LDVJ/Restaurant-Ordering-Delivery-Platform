@@ -21,7 +21,7 @@ export default function AddressCard({
   return (
     <div
       onClick={selectable && onSelect ? () => onSelect(address) : undefined}
-      className={`rounded-xl border p-4 transition-all text-left relative ${
+      className={`rounded-xl border p-4 transition-all text-left relative flex flex-col justify-between h-full ${
         selectable ? 'cursor-pointer' : ''
       } ${
         isSelected
@@ -29,15 +29,15 @@ export default function AddressCard({
           : 'border-border bg-white hover:border-gray-300'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2.5 min-w-0">
+      <div className="flex-1 flex items-start justify-between gap-3 min-w-0 mb-3">
+        <div className="flex items-start gap-2.5 min-w-0 flex-1">
           <div className="p-2 rounded-lg bg-gray-100 text-muted-text shrink-0 mt-0.5">
             <MapPin className="w-4 h-4 text-brand" />
           </div>
 
-          <div className="space-y-1 min-w-0">
+          <div className="space-y-1 min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-sm font-bold text-text-main leading-tight truncate">
+              <p className="text-sm font-bold text-text-main leading-tight truncate max-w-[200px] sm:max-w-[260px]" title={address.house}>
                 {address.house}
               </p>
               {address.is_default && (
@@ -47,13 +47,13 @@ export default function AddressCard({
               )}
             </div>
 
-            <p className="text-xs text-muted-text leading-relaxed">
+            <p className="text-xs text-muted-text leading-relaxed line-clamp-2" title={`${address.city}, ${address.state}, ${address.country}`}>
               {address.city}, {address.state}, {address.country}
             </p>
 
-            <p className="text-xs text-text-main font-medium flex items-center gap-1.5 pt-1">
-              <Phone className="w-3.5 h-3.5 text-muted-text" />
-              <span>{phoneDisplay}</span>
+            <p className="text-xs text-text-main font-medium flex items-center gap-1.5 pt-1 truncate">
+              <Phone className="w-3.5 h-3.5 text-muted-text shrink-0" />
+              <span className="truncate">{phoneDisplay}</span>
             </p>
           </div>
         </div>
@@ -70,9 +70,9 @@ export default function AddressCard({
         )}
       </div>
 
-      {/* Profile Management Actions */}
+      {/* Profile Management Actions - Stick to the bottom */}
       {!selectable && (
-        <div className="flex items-center justify-end gap-2 pt-3 mt-3 border-t border-border/60">
+        <div className="mt-auto flex items-center justify-end gap-2 pt-3 border-t border-border/60">
           {!address.is_default && onMakeDefault && (
             <Button
               type="button"

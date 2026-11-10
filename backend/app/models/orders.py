@@ -23,7 +23,8 @@ class Orders(Base):
     delivery_address_text: Mapped[str] = mapped_column(String(500), nullable=False)
     contact_phone: Mapped[str] = mapped_column(String(20), nullable=False)
     status_updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-
+    
+    restaurant : Mapped["Restaurants"] = relationship()
     order_items : Mapped[list["OrderItems"]] = relationship(back_populates="order_info")
     customer : Mapped["Users"] = relationship(back_populates="orders", foreign_keys=[customer_id])
 

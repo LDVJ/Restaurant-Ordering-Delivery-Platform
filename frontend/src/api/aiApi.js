@@ -18,12 +18,31 @@ export function isMocked(group) {
 const USE_MOCK_AI = isMocked('ai');
 
 /**
+ * Non-blocking probe helper: fires real HTTP call so it appears in DevTools
+ * Network tab without blocking or failing the mock-backed UI flow.
+ */
+async function probeRealApi(requestFn) {
+  try {
+    await requestFn();
+  } catch (err) {
+    console.debug(
+      '[Probe Call]:',
+      err?.config?.method?.toUpperCase(),
+      err?.config?.url,
+      '->',
+      err?.response?.status || 'pending backend implementation'
+    );
+  }
+}
+
+/**
  * Ask a question to the AI assistant
  * Body: { question: string }
  * Empty question means "Summarize my last five orders".
  */
 export async function askAi(question = '') {
   if (USE_MOCK_AI) {
+    probeRealApi(() => axiosClient.post('/ai/insights', { question }));
     return mockAi.askAi(question);
   }
   const response = await axiosClient.post('/ai/insights', { question });
