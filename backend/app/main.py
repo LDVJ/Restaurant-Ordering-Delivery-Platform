@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, owner, customer
+from app.routers import (
+    auth, 
+    owner, 
+    customer,
+    address,
+    customer_orders
+)
 from app.exception_handlers import register_exception_handlers
 
 app = FastAPI()
@@ -25,6 +31,8 @@ register_exception_handlers(app=app)
 app.include_router(auth.router)
 app.include_router(owner.router)
 app.include_router(customer.router)
+app.include_router(address.router)
+app.include_router(customer_orders.router)
 
 @app.get("/")
 async def root():

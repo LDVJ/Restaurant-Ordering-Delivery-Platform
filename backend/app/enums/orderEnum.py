@@ -1,7 +1,7 @@
 from enum import Enum
 
 class OrderStatus(str, Enum):
-    PENDING_PAYMENT = "PENDING_PAYMENT"
+    PENDING_PAYMENT = "PENDING_PAYMENT" 
     PLACED = "PLACED"
     ACCEPTED = "ACCEPTED"
     PREPARING = "PREPARING"

@@ -62,7 +62,10 @@ async def get_user_with_token(bearer_token : str = Depends(oauth2_schema), db : 
 def required_roles(*roles : UsersRole):
     async def role_checker(current_user : user.Users = Depends(get_user_with_token)):
         if current_user.role not in roles:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission for this action")
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="You do not have permission for this action"
+                )
         return current_user
     return role_checker
 

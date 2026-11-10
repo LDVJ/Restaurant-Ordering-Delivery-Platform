@@ -7,7 +7,9 @@ from pydantic import (
 )
 from typing import Annotated
 from app.enums.userEnum import UsersRole
+from app.enums.orderEnum import OrderStatus, PaymentStatus, ReturnRequestStatus
 from string import capwords
+from typing import Text
 
 CountryCode = Annotated[str, StringConstraints(pattern=r"^\+\d{1,4}$")]
 PhoenNumber = Annotated[str, StringConstraints(pattern=r"^\d{6,15}$")]
@@ -307,4 +309,169 @@ class UpdateMenuitem(BaseModel):
                 raise ValueError(f"{field} cannot be null")
         return self
 
+class CreateUserAddress(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    house : str = Field(min_length=5, max_length=100)
+    city : str = Field(min_length=3, max_length=100)
+    state : str = Field(min_length=3, max_length=100)
+    country : str = Field(min_length=3, max_length=100)
+    country_code: CountryCode
+    phone_number: PhoenNumber
+
+    @computed_field
+    @property
+    def phone_e164(self) -> str:
+        return f"{self.country_code}{self.phone_number}"
+
+class UserAddress(CreateUserAddress):
+
+    id : str
+    created_at : datetime
+    updated_at : datetime | None = None
+    is_default : bool
+
+class UserAddressResponse(BaseModel):
+
+    user_id : str
+    addresses : list[UserAddress]
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+
+class UpdateUserAddress(BaseModel):
+    house : str | None = Field(default=None, min_length=5, max_length=100)
+    city : str | None = Field(default=None, min_length=3, max_length=100)
+    state : str | None = Field(default=None, min_length=3, max_length=100)
+    country : str | None = Field(default=None, min_length=3, max_length=100)
+    country_code: CountryCode | None = None
+    phone_number: PhoenNumber | None = None
+
+    @model_validator(mode="after")
+    def reject_empty_or_null(self):
+        sent = self.model_fields_set
+        if not sent:
+            raise ValueError("Send at least one field to update")
+        for field in sent:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} cannot be null")
+        return self
     
+
+class UpdateUser(BaseModel):
+    name : str 
+    country_code : CountryCode
+    phone_number : PhoenNumber
+
+    @computed_field
+    @property
+    def phone_e164(self) -> str:
+        return f"{self.country_code}{self.phone_number}"
+
+# class OrderRestaurant(BaseModel):
+#     id : str
+#     name : str
+#     address : str
+#     phone : str
+
+# class OrderItemResponse(BaseModel):
+#     item_name : str
+#     quantity : int
+
+# class CreateOrderItems(BaseModel):
+#     restaurant_id : str
+#     status : OrderStatus = OrderStatus.PLACED
+#     payment_status : PaymentStatus = PaymentStatus.MOCK_PAID
+#     bill_amount : Decimal
+#     delivery_address : str
+#     contact_phone : str = Field(min_length=6, max_length=15)
+
+# class CreateReview(BaseModel):
+#     order_id : str
+#     restaurant_id : str
+#     rating : int = Field(ge=1, le=5)
+#     commennt : Text
+
+
+# class Orders(CreateOrderItems):
+#     id : str
+#     created_at : datetime
+#     status_updated_at : datetime
+#     customer_name : str
+#     restaurant : OrderRestaurant
+#     items : list[OrderItemResponse]
+
+# # class DeliverPartnerResponse(BaseModel):
+
+class CreateOrderItem(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes= True
+    )
+
+    menu_item_id : str
+    quantity : int = Field(ge=1)
+
+class CreateOrder(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes= True
+    )
+
+    restaurant_id : str
+    delivery_address : str = Field(min_length=5, max_length=500)
+    contact_phone : str = Field(min_length=6, max_length=15)
+    items : list[CreateOrderItem]
+
+class CustomerOrderItemResponse(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    id : str
+    item_name :str 
+    quantity : int
+
+class OrderRestaurant(BaseModel):
+    id : str
+    name : str
+    address : str 
+    phone :  str 
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+class OrderUserInfo(BaseModel):
+    id : str
+    name : str
+    phone : str
+
+class OrderResponse(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    id : str
+    status : OrderStatus
+    payment_status : PaymentStatus
+    bill_amount : str
+    created_at : datetime
+    status_updated_at : datetime | None = None
+    delivered_at : datetime | None = None
+    delivery_address : str 
+    contact_phone : str 
+    restaurant : OrderRestaurant
+    items : list[CustomerOrderItemResponse]
+    # customer : OrderUserInfo 
+    delivery_partner : UserResponse | None = None
+    review : Decimal | None
+    return_request : ReturnRequestStatus | None = None
+
