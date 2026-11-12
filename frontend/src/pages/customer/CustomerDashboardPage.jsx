@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShoppingBag } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -22,7 +22,7 @@ export default function CustomerDashboardPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ status: '', date_from: '', date_to: '' });
+  const [filters, setFilters] = useState({ search: '', status: '', date_from: '', date_to: '' });
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,46 +30,57 @@ export default function CustomerDashboardPage() {
   const [reloadTrigger, setReloadTrigger] = useState(0);
   const [reviewingOrder, setReviewingOrder] = useState(null);
 
+  const requestIdRef = useRef(0);
+
   useEffect(() => {
     let ignore = false;
     async function loadOrders() {
+      const currentReqId = ++requestIdRef.current;
+      setIsLoading(true);
       try {
         const params = {
           page,
           page_size: 10,
-          ...(filters.status ? { status: filters.status } : {}),
-          ...(filters.date_from ? { date_from: filters.date_from } : {}),
-          ...(filters.date_to ? { date_to: filters.date_to } : {}),
+          ...(filters.status && { status: filters.status }),
+          ...(filters.date_from && { date_from: filters.date_from }),
+          ...(filters.date_to && { date_to: filters.date_to }),
         };
         const data = await getOrders(params);
-        if (!ignore) {
-          setOrders(data.items || []);
-          setTotal(data.total || 0);
-          setTotalPages(data.total_pages || 0);
+        if (!ignore && currentReqId === requestIdRef.current) {
+          let list = data.items || [];
+          if (filters.search) {
+            const q = filters.search.toLowerCase();
+            list = list.filter((o) =>
+              o.restaurant?.name?.toLowerCase().includes(q) ||
+              o.items?.some((i) => i.item_name?.toLowerCase().includes(q)) ||
+              o.id?.toLowerCase().includes(q)
+            );
+          }
+          setOrders(list);
+          setTotal(data.total || list.length);
+          setTotalPages(data.total_pages || 1);
           setError(null);
         }
       } catch (err) {
-        if (!ignore) setError(getErrorMessage(err));
+        if (!ignore && currentReqId === requestIdRef.current) setError(getErrorMessage(err));
       } finally {
-        if (!ignore) setIsLoading(false);
+        if (!ignore && currentReqId === requestIdRef.current) setIsLoading(false);
       }
     }
     loadOrders();
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, [page, filters, reloadTrigger]);
 
-  const handleFilterChange = (newFilters) => {
-    setIsLoading(true);
+  const handleApplyFilters = (newFilters) => {
     setFilters(newFilters);
     setPage(1);
+    setIsLoading(true);
   };
 
   const handleResetFilters = () => {
-    setIsLoading(true);
-    setFilters({ status: '', date_from: '', date_to: '' });
+    setFilters({ search: '', status: '', date_from: '', date_to: '' });
     setPage(1);
+    setIsLoading(true);
   };
 
   const handleCancelOrder = async (orderId) => {
@@ -97,15 +108,11 @@ export default function CustomerDashboardPage() {
   return (
     <div className="space-y-6 pb-20 text-left max-w-4xl mx-auto">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">
-          My Orders
-        </h1>
-        <p className="text-xs sm:text-sm text-muted-text mt-1">
-          Track active deliveries, review past campus orders, or rate your meals.
-        </p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">My Orders</h1>
+        <p className="text-xs sm:text-sm text-muted-text mt-1">Track active deliveries, review past campus orders, or rate your meals.</p>
       </div>
 
-      <OrderFilters filters={filters} onChange={handleFilterChange} onReset={handleResetFilters} />
+      <OrderFilters filters={filters} onApply={handleApplyFilters} onReset={handleResetFilters} />
 
       {isLoading ? (
         <OrderListSkeleton count={3} />
@@ -113,26 +120,23 @@ export default function CustomerDashboardPage() {
         <ErrorState
           title="Could not load orders"
           message={error}
-          onRetry={() => {
-            setIsLoading(true);
-            setReloadTrigger((prev) => prev + 1);
-          }}
+          onRetry={() => { setIsLoading(true); setReloadTrigger((prev) => prev + 1); }}
         />
       ) : orders.length === 0 ? (
         <div className="py-10">
           <EmptyState
             title="No orders found"
             description={
-              filters.status || filters.date_from || filters.date_to
+              filters.status || filters.date_from || filters.date_to || filters.search
                 ? 'No orders match your selected filters. Try clearing them.'
                 : "You haven't placed any campus orders yet. Explore our kitchens!"
             }
             icon={ShoppingBag}
             actionText={
-              filters.status || filters.date_from || filters.date_to ? 'Reset filters' : 'Browse restaurants'
+              filters.status || filters.date_from || filters.date_to || filters.search ? 'Reset filters' : 'Browse restaurants'
             }
             onAction={
-              filters.status || filters.date_from || filters.date_to ? handleResetFilters : () => navigate('/restaurants')
+              filters.status || filters.date_from || filters.date_to || filters.search ? handleResetFilters : () => navigate('/restaurants')
             }
           />
         </div>
@@ -159,10 +163,7 @@ export default function CustomerDashboardPage() {
               <Pagination
                 page={page}
                 totalPages={totalPages}
-                onPageChange={(newPage) => {
-                  setIsLoading(true);
-                  setPage(newPage);
-                }}
+                onPageChange={(newPage) => { setIsLoading(true); setPage(newPage); }}
               />
             </div>
           )}
@@ -176,9 +177,7 @@ export default function CustomerDashboardPage() {
           orderId={reviewingOrder.id}
           restaurantName={reviewingOrder.restaurant?.name}
           onSubmitSuccess={() => {
-            setOrders((prev) =>
-              prev.map((o) => (o.id === reviewingOrder.id ? { ...o, has_review: true } : o))
-            );
+            setOrders((prev) => prev.map((o) => (o.id === reviewingOrder.id ? { ...o, has_review: true } : o)));
           }}
         />
       )}

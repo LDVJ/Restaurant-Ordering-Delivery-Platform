@@ -63,6 +63,12 @@ export default function AssignPartnerModal({
       onClose();
     } catch (err) {
       setError(getErrorMessage(err));
+      if (err.response?.status === 400) {
+        try {
+          const fresh = await ownerApi.getOwnerOrderById(order.id);
+          if (fresh) onAssignSuccess(fresh);
+        } catch { /* silent refetch failure */ }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -87,17 +93,19 @@ export default function AssignPartnerModal({
         ) : (
           <div className="space-y-2">
             <p className="text-xs text-muted-text">Select an active delivery partner for pickup:</p>
-            <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            <div className="space-y-2 max-h-60 overflow-y-auto px-1 py-1">
               {partners.map((p) => {
                 const isSelected = p.id === selectedPartnerId;
                 return (
                   <div
                     key={p.id}
+                    tabIndex={0}
                     onClick={() => setSelectedPartnerId(p.id)}
-                    className={`p-3 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedPartnerId(p.id); } }}
+                    className={`box-border border-2 p-3 rounded-xl flex items-center justify-between cursor-pointer transition-colors focus:outline-none focus-visible:border-brand ${
                       isSelected
-                        ? 'border-brand bg-brand-tint/30 ring-1 ring-brand'
-                        : 'border-border bg-white hover:bg-gray-50'
+                        ? 'border-brand bg-brand-tint/30'
+                        : 'border-border bg-white hover:border-gray-300 hover:bg-gray-50'
                     }`}
                   >
                     <div className="flex items-center gap-3">

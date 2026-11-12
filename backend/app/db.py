@@ -10,7 +10,7 @@ engine = create_async_engine(
     max_overflow=20,
     pool_pre_ping=True)
 
-SessionLocal = async_sessionmaker(
+AsyncSessionLocal = async_sessionmaker(
     bind=engine,
     autoflush=False,
     class_=AsyncSession,
@@ -21,6 +21,6 @@ class Base(DeclarativeBase):
     pass
 
 async def get_db():
-    async with SessionLocal() as db:
+    async with AsyncSessionLocal() as db:
         yield db
 

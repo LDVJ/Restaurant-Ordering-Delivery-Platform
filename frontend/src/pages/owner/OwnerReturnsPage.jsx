@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { RotateCcw } from 'lucide-react';
@@ -30,9 +30,26 @@ export default function OwnerReturnsPage() {
   const [error, setError] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
 
+  const loadReturns = useCallback(async () => {
+    try {
+      const params = { page, page_size: 10 };
+      if (statusFilter) params.status = statusFilter;
+      const data = await ownerApi.getOwnerReturns(params);
+      setReturns(data.items || []);
+      setTotal(data.total || 0);
+      setTotalPages(data.total_page || data.total_pages || 1);
+      setError(null);
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }, [page, statusFilter]);
+
   useEffect(() => {
     let ignore = false;
     async function load() {
+      setIsLoading(true);
       try {
         const params = { page, page_size: 10 };
         if (statusFilter) params.status = statusFilter;
@@ -40,7 +57,7 @@ export default function OwnerReturnsPage() {
         if (!ignore) {
           setReturns(data.items || []);
           setTotal(data.total || 0);
-          setTotalPages(data.total_pages || 1);
+          setTotalPages(data.total_page || data.total_pages || 1);
           setError(null);
         }
       } catch (err) {
@@ -53,12 +70,16 @@ export default function OwnerReturnsPage() {
     return () => { ignore = true; };
   }, [page, statusFilter]);
 
-  const handleApprove = async (ret) => {
+  const handleUpdateStatus = async (ret, nextStatus) => {
+    if (actionLoadingId) return;
     const shortId = ret.order_id.slice(0, 8).toUpperCase();
+    const isApprove = nextStatus === 'APPROVED';
     const ok = await confirm({
-      title: 'Approve return request?',
-      message: `Approve return request for order #${shortId}? The payment will be refunded and the order marked Refunded.`,
-      confirmText: 'Approve & refund',
+      title: isApprove ? 'Approve return request?' : 'Reject return request?',
+      message: isApprove
+        ? `Approve return request for order #${shortId}? The payment will be refunded and the order marked Refunded.`
+        : `Reject return request for order #${shortId}? This cannot be undone.`,
+      confirmText: isApprove ? 'Approve & refund' : 'Reject return',
       cancelText: 'Keep pending',
       variant: 'danger',
     });
@@ -66,36 +87,21 @@ export default function OwnerReturnsPage() {
 
     setActionLoadingId(ret.id);
     try {
-      await ownerApi.approveReturn(ret.id);
-      setReturns((prev) => prev.map((r) => (r.id === ret.id ? { ...r, status: 'APPROVED' } : r)));
-      toast.success('Return approved and refunded');
+      const updatedReturn = await ownerApi.updateReturnStatus(ret.id, nextStatus);
+      setReturns((prev) => prev.map((r) => (r.id === ret.id ? updatedReturn : r)));
+      toast.success(isApprove ? 'Return approved and refunded' : 'Return request rejected');
       if (refreshBadges) refreshBadges();
     } catch (err) {
-      toast.error(getErrorMessage(err));
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
-
-  const handleReject = async (ret) => {
-    const shortId = ret.order_id.slice(0, 8).toUpperCase();
-    const ok = await confirm({
-      title: 'Reject return request?',
-      message: `Reject return request for order #${shortId}? This cannot be undone.`,
-      confirmText: 'Reject return',
-      cancelText: 'Keep pending',
-      variant: 'danger',
-    });
-    if (!ok) return;
-
-    setActionLoadingId(ret.id);
-    try {
-      await ownerApi.rejectReturn(ret.id);
-      setReturns((prev) => prev.map((r) => (r.id === ret.id ? { ...r, status: 'REJECTED' } : r)));
-      toast.success('Return request rejected');
-      if (refreshBadges) refreshBadges();
-    } catch (err) {
-      toast.error(getErrorMessage(err));
+      if (err.response?.status === 400) {
+        toast.error('This return was already resolved');
+        loadReturns();
+      } else if (err.response?.status === 404) {
+        toast.error('Return not found');
+        setReturns((prev) => prev.filter((r) => r.id !== ret.id));
+        setTotal((prev) => Math.max(0, prev - 1));
+      } else {
+        toast.error(getErrorMessage(err));
+      }
     } finally {
       setActionLoadingId(null);
     }
@@ -143,8 +149,8 @@ export default function OwnerReturnsPage() {
                 key={ret.id}
                 ret={ret}
                 isActionLoading={actionLoadingId === ret.id}
-                onApprove={handleApprove}
-                onReject={handleReject}
+                onApprove={() => handleUpdateStatus(ret, 'APPROVED')}
+                onReject={() => handleUpdateStatus(ret, 'REJECTED')}
               />
             ))}
           </div>

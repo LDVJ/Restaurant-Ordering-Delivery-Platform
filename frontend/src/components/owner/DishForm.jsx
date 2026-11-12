@@ -27,9 +27,23 @@ export default function DishForm({
       Number(formData.price).toFixed(2) !== Number(initialDish?.price || 0).toFixed(2)
     : true;
 
+  const handlePriceKeyDown = (e) => {
+    if (['-', '+', 'e', 'E'].includes(e.key)) {
+      e.preventDefault();
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    let cleanValue = value;
+    if (name === 'price') {
+      cleanValue = value.replace(/^-+/, '');
+      if (cleanValue.includes('.')) {
+        const [intPart, ...rest] = cleanValue.split('.');
+        cleanValue = `${intPart}.${rest.join('').slice(0, 2)}`;
+      }
+    }
+    setFormData((prev) => ({ ...prev, [name]: cleanValue }));
     if (fieldErrors[name]) setFieldErrors((prev) => ({ ...prev, [name]: '' }));
     if (formError) setFormError('');
   };
@@ -45,15 +59,12 @@ export default function DishForm({
     }
 
     const numPrice = Number(formData.price);
-    const priceRegex = /^\d+(\.\d{1,2})?$/;
     if (!formData.price.trim()) {
       errors.price = 'Price is required';
     } else if (isNaN(numPrice) || numPrice <= 0) {
       errors.price = 'Price must be greater than 0';
     } else if (numPrice > FIELD_LIMITS.DISH_PRICE_MAX) {
       errors.price = `Price cannot exceed ${FIELD_LIMITS.DISH_PRICE_MAX}`;
-    } else if (!priceRegex.test(formData.price.trim())) {
-      errors.price = 'Price can have at most 2 decimal places';
     }
 
     setFieldErrors(errors);
@@ -133,10 +144,13 @@ export default function DishForm({
         label="Price (₹)"
         name="price"
         type="number"
+        min="0.01"
         step="0.01"
+        inputMode="decimal"
         placeholder="199.00"
         value={formData.price}
         onChange={handleChange}
+        onKeyDown={handlePriceKeyDown}
         error={fieldErrors.price}
         required
       />

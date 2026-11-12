@@ -19,7 +19,9 @@ export default function OwnerReturnCard({ ret, isActionLoading, onApprove, onRej
           </div>
           <p className="text-xs text-muted-text mt-0.5">Requested {formatDateTime(ret.created_at)}</p>
         </div>
-        <span className="font-extrabold text-base text-text-main">{formatCurrency(ret.bill_amount)}</span>
+        <span className="font-extrabold text-base text-text-main">
+          {formatCurrency(Number(ret.bill_amount).toFixed(2))}
+        </span>
       </div>
 
       <div className="space-y-1.5 text-xs border-t border-border/70 pt-2.5">
@@ -32,7 +34,7 @@ export default function OwnerReturnCard({ ret, isActionLoading, onApprove, onRej
         </p>
       </div>
 
-      {ret.status === 'REQUESTED' && (
+      {ret.status === 'REQUESTED' ? (
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
           <Button
             type="button"
@@ -57,6 +59,13 @@ export default function OwnerReturnCard({ ret, isActionLoading, onApprove, onRej
           >
             Approve & refund
           </Button>
+        </div>
+      ) : (
+        <div className="flex items-center justify-between pt-2 border-t border-border/50 text-[11px] text-muted-text">
+          <span>Resolved {formatDateTime(ret.resolved_at)}</span>
+          <span className={`px-2 py-0.5 rounded-full font-semibold ${badge.bg} ${badge.text}`}>
+            {badge.label}
+          </span>
         </div>
       )}
     </div>

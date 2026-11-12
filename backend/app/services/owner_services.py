@@ -1,10 +1,14 @@
 from app.models.restaurant import (
     RestaurantAddress, 
     Restaurants, 
-    MenuItems
+    MenuItems,
+    
 )
+from app.models.orders import Orders, Review
+from app.models.payment import PaymentLedger, ReturnRequest
+from app.models.user import Users
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 from app.schemas import (
@@ -12,10 +16,14 @@ from app.schemas import (
     UpdateRestaurant,
     UpdateRestaurantAdress,
     CreateMenuItem,
-    UpdateMenuitem
 )
+from app.enums.orderEnum import OrderStatus, PaymentStatus, LedgerEntryType, ReturnRequestStatus
+from app.enums.userEnum import UsersRole
 import math
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from app.oauth2 import CurrentOwner
+from datetime import datetime, time
+from zoneinfo import ZoneInfo
 
 
 async def _load_owner_restaurant(db : AsyncSession, owner_id : str):
@@ -134,22 +142,29 @@ async def update_restaurant_address(payload : UpdateRestaurantAdress, db : Async
 
     return updated_restaurant
 
-async def get_all_menu_items_services(owner_id : str, db : AsyncSession, page : int, page_size : int):
+async def get_all_menu_items_services(owner_id : str, db : AsyncSession, page : int, page_size : int, search : str | None, is_available : bool | None):
     restaurant = await _load_owner_restaurant(db= db, owner_id=owner_id)
     restaurant_id = restaurant.id
 
     if not restaurant.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant is not Active")
 
-    total = (await db.scalar(select(func.count(MenuItems.id)).where(MenuItems.restaurant_id == restaurant_id))) or 0
+    filters = [MenuItems.restaurant_id == restaurant_id]
+    if search:
+        filters.append(MenuItems.name.ilike(f"%{search}%"))
+    if is_available:
+        filters.append(MenuItems.is_available == is_available)
+    
+    total = (await db.scalar(select(func.count(MenuItems.id)).where(*filters))) or 0
     total_pages = math.ceil(total / page_size)
+
 
     stmt = select(
         MenuItems
     ).where(
-        MenuItems.restaurant_id == restaurant_id
+        *filters
     ).order_by(
-        MenuItems.created_at, MenuItems.id
+        MenuItems.created_at.asc(), MenuItems.id.desc()
     ).limit(
         page_size
     ).offset((page - 1) * page_size)
@@ -239,3 +254,119 @@ async def update_menu_item_service(id : str, payload : dict, db : AsyncSession, 
     await db.refresh(menu_item)
 
     return menu_item
+
+async def get_restaurant_dashboard_service(owner : CurrentOwner, db : AsyncSession):
+    restaurant = await db.scalar(select(Restaurants).where(Restaurants.owner_id == owner.id))
+
+    if not restaurant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Restaurant not found"
+        )
+
+    IST = ZoneInfo("Asia/Kolkata")
+
+    now_ist = datetime.now(IST)
+    start = datetime.combine(now_ist.date(), time.min, tzinfo=IST)
+    end = now_ist
+
+    todays_order = await db.scalar(select(
+        func.count(Orders.id)
+        ).where(
+            Orders.restaurant_id == restaurant.id,
+            Orders.created_at >= start,
+            Orders.created_at <= end
+        )
+    ) or 0
+
+    total_orders = await db.scalar(
+        select(
+            func.count(Orders.id)
+        ).where(
+            Orders.restaurant_id == restaurant.id
+        )
+    ) or 0
+
+
+    active_return = (
+        select(
+            ReturnRequest
+            ).where(
+                ReturnRequest.order_id == Orders.id,
+                ReturnRequest.status != ReturnRequestStatus.REJECTED
+            ).exists()
+    )
+
+    total_revenue = await db.scalar(select(
+        func.coalesce(func.sum(PaymentLedger.amount), 0)
+    ).select_from(PaymentLedger).join(
+        Orders, Orders.id == PaymentLedger.order_id
+    ).where(
+        Orders.restaurant_id == restaurant.id,
+        Orders.status == OrderStatus.DELIVERED,
+        PaymentLedger.entry_type == LedgerEntryType.PAYMENT,
+        ~active_return
+    )
+    ) or 0
+
+
+    avg_rating = await db.scalar(select(
+        func.avg(Review.rating).label("total_review"),
+    ).where(
+        Review.restaurant_id == restaurant.id
+    )) or 0
+
+    avg_rating = round(float(avg_rating), 1)
+
+    pending_returns = await db.scalar(select(
+        func.count(ReturnRequest.id)
+    ).join(
+        Orders, Orders.id == ReturnRequest.order_id
+    ).where(
+        ReturnRequest.status == ReturnRequestStatus.REQUESTED,
+        Orders.restaurant_id == restaurant.id
+    )
+    )
+
+    return {
+        "todays_order" : todays_order,
+        "total_orders" : total_orders,
+        "total_revenue" : f"{total_revenue:.2f}",
+        "average_rating" : avg_rating,
+        "pending_returns" : pending_returns
+    }
+
+
+async def get_all_delivery_partners_services(
+        db : AsyncSession
+):
+    busy_partners = (select(
+        Orders.delivery_partner_id
+    ).where(
+        Orders.status != OrderStatus.DELIVERED,
+        Orders.delivery_partner_id.is_not(None)
+    ).group_by(
+        Orders.delivery_partner_id
+    ).having(
+        func.count(Orders.id) >=5
+    ))
+
+    stmt = select(Users).where(
+        Users.role == UsersRole.DELIVERY_PARTNER,
+        Users.id.not_in(busy_partners)
+    )
+
+    available_partners = (await db.execute(stmt)).scalars().all()
+
+    items = [{
+        "id" : partner.id,
+        "name" : partner.name,
+        "phone" : partner.phone_e164
+    }for partner in available_partners
+    ]
+
+    return {
+        "items" : items
+    }
+    
+    

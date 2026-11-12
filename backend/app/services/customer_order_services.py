@@ -1,18 +1,34 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
-from app.schemas import CreateOrder
+from app.schemas import CreateOrder, CreateReturnRequest, CreateReview
 from app.oauth2 import CurrentCustomer
-from app.enums.orderEnum import PaymentStatus, OrderStatus
+from app.enums.orderEnum import PaymentStatus, OrderStatus, LedgerEntryType, ReturnRequestStatus
 from fastapi import HTTPException, status
 from app.models.orders import Orders, OrderItems, Review
 from app.models.restaurant import MenuItems, Restaurants
-from app.models.payment import ReturnRequest
+from app.models.payment import ReturnRequest, PaymentLedger
 from sqlalchemy import select, func
 from sqlalchemy.orm import joinedload, selectinload
 from app.utilities import generate_id
-from datetime import datetime, timedelta
+from datetime import datetime, time, timezone, timedelta
 import math
+import secrets
 
+
+
+async def _get_rating(order : Orders, restaurant : Restaurants, customer : CurrentCustomer, db : AsyncSession):
+    return await db.scalar(select(Review.rating).where(
+        Review.order_id == order.id,
+        Review.restaurant_id == restaurant.id,
+        Review.customer_id == customer.id
+    ))
+
+async def _get_return_request_status(order : Orders, customer : CurrentCustomer, db : AsyncSession):
+    return await db.scalar(select(ReturnRequest.status).where(
+        ReturnRequest.order_id == order.id,
+        ReturnRequest.customer_id == customer.id,
+    ))
+    
 
 async def _create_response(
         order : Orders, 
@@ -22,17 +38,19 @@ async def _create_response(
         customer : CurrentCustomer
     ):
 
-    rating = await db.scalar(select(Review.rating).where(
-        Review.order_id == order.id,
-        Review.restaurant_id == restaurant.id,
-        Review.customer_id == customer.id
-    ))
+    rating = await _get_rating(
+        restaurant=restaurant,
+        order=order,
+        customer=customer,
+        db = db
+    )
 
-    return_request_status = await db.scalar(select(ReturnRequest.status).where(
-        ReturnRequest.order_id == order.id,
-        ReturnRequest.customer_id == customer.id,
-    ))
-
+    return_request_status = await _get_return_request_status(
+        order=order,
+        customer=customer,
+        db = db
+    )
+    
     response = {
                 "id": order.id,
                 "status": order.status,
@@ -58,7 +76,11 @@ async def _create_response(
                     }for oi in order_items
                 ],
                 # "customer": {"id": customer.id, "name": customer.name, "phone": customer.phone_e164},
-                "delivery_partner": order.delivery_partner_id,
+                "delivery_partner": {
+                    "id" : order.delivery_partner.id,
+                    "name" : order.delivery_partner.name,
+                    "phone" : order.delivery_partner.phone_e164
+                } if order.delivery_partner_id else None,
                 "review": rating,
                 "return_request": return_request_status,
             }
@@ -127,6 +149,14 @@ async def create_order_service(
     ]
     db.add_all(order_items)
 
+    new_payment_ledger = PaymentLedger(
+        order_id = new_order.id,
+        entry_type = LedgerEntryType.PAYMENT,
+        amount = new_order.bill_amount,
+        transaction_ref = f"TR-{secrets.token_hex(4).upper()}",
+    )
+    db.add(new_payment_ledger)
+
     try:
         await db.flush()                
         await db.refresh(new_order)      
@@ -153,7 +183,7 @@ async def create_order_service(
 async def get_order_info_services(order_id : str, customer : CurrentCustomer, db : AsyncSession):
     try:
         order = await db.scalar(select(Orders).options(
-            selectinload(Orders.order_items)
+            selectinload(Orders.order_items), joinedload(Orders.delivery_partner)
         ).where(Orders.id == order_id, Orders.customer_id == customer.id))
         if not order:
             raise HTTPException(
@@ -197,7 +227,7 @@ async def get_all_orders_services(
         db : AsyncSession,
         page : int,
         page_size : int,
-        status : OrderStatus,
+        status : OrderStatus | None,
         date_from : datetime,
         date_to : datetime
 ):
@@ -205,11 +235,276 @@ async def get_all_orders_services(
     if status:
         filters.append(Orders.status == status)
     if date_from:
-        filters.append(Orders.created_at >= date_from)
+        start = datetime.combine(date_from, time.min, tzinfo=timezone.utc)
+        filters.append(Orders.created_at >= start)
     if date_to:
-        filters.append(Orders.created_at < date_to + timedelta(days=1))
+        end = datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=timezone.utc)
+        filters.append(Orders.created_at < end)
 
-    total = await db.scalar(select(func.count(Orders.id)).where(filters)) or 0
+    total = await db.scalar(select(func.count(Orders.id)).where(*filters)) or 0
     total_page = math.ceil(total/page_size)
 
+    all_orders = (await db.execute(
+        select(
+            Orders
+        ).options(
+            joinedload(Orders.restaurant).joinedload(Restaurants.address),
+            selectinload(Orders.order_items)
+        ).where(
+            *filters
+        ).order_by(
+            Orders.created_at.desc()
+        ).limit(page_size).offset((page - 1) * page_size)
+    )).scalars().all()
+
+    order_ids = [o.id for o in all_orders]
+
+
+    if order_ids:
+        rows = await db.execute(select(
+            ReturnRequest.order_id,
+            ReturnRequest.status,
+            ).where(
+                ReturnRequest.order_id.in_(order_ids),
+                ReturnRequest.customer_id == customer.id
+            )
+        )
+        return_status = {r.order_id : r.status for r in rows}
+
+        rows = await db.execute(select(
+            Review.order_id, Review.rating
+        ).where(
+            Review.order_id.in_(order_ids),
+            Review.customer_id == customer.id
+        ))
+
+        review_rating = {r.order_id : r.rating for r in rows}
+
+        rows = await db.execute(
+                select(OrderItems.id, OrderItems.order_id, OrderItems.item_name, OrderItems.quantity).where(
+                    OrderItems.order_id.in_(order_ids),
+                )
+            )
+        order_items : dict[str, list] = {}
+        for r in rows:
+            if r.order_id in order_items:
+                order_items.get(r.order_id).append({
+                    "id" : r.id,
+                    "item_name" : r.item_name,
+                    "quantity" : r.quantity
+                    }
+                )
+            else:
+                order_items[r.order_id] = [{
+                    "id" : r.id,
+                    "item_name" : r.item_name,
+                    "quantity" : r.quantity
+                }]
+
+    items = [{   
+            "id" : order.id,
+            "status" : order.status,
+            "payment_status" : order.payment_status,
+            "bill_amount" : f"{order.bill_amount:.2f}",
+            "created_at" : order.created_at,
+            "restaurant" : {
+                "id" : order.restaurant_id,
+                "name" : order.restaurant.name,
+                "address": f"{order.restaurant.address.house} {order.restaurant.address.city} "
+                            f"{order.restaurant.address.state} {order.restaurant.address.country}",
+                "phone": order.restaurant.address.phone_e164,
+            },
+            "items" : order_items.get(order.id),
+            "return_status" : return_status.get(order.id),
+            "has_review" : review_rating.get(order.id),
+        }for order in all_orders]
+
+    return {
+        "items" : items,
+        "total" : total,
+        "page" : page,
+        "page_size" : page_size,
+        "total_page" : total_page
+    }
+
+async def cancel_order_service( 
+        customer : CurrentCustomer, 
+        db : AsyncSession, 
+        order_id : str
+        ):
+    order = await db.scalar(select(Orders).options(
+        joinedload(Orders.restaurant).joinedload(Restaurants.address), selectinload(Orders.order_items)).where(
+        Orders.id == order_id,
+        Orders.customer_id == customer.id
+    ))
+
+    if not order:
+        raise HTTPException(
+            status_code= status.HTTP_404_NOT_FOUND,
+            detail= f"Order with id {order_id} not found"
+        )
+
+    if order.status != OrderStatus.PLACED or order.payment_status == PaymentStatus.REFUNDED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only orders in PLACED status can be cancelled"
+        )
+
+    order.status = OrderStatus.CANCELLED
+    order.payment_status = PaymentStatus.REFUNDED
+
+    new_payment_ledger = PaymentLedger(
+        order_id = order_id,
+        entry_type = LedgerEntryType.REFUND,
+        amount = order.bill_amount,
+        transaction_ref = f"TR-{secrets.token_hex(4).upper()}"
+    )
+
+    db.add(new_payment_ledger)
+
+
+    try:
+        await db.flush()
+        await db.refresh(order)
+        response = await _create_response(
+            order = order,
+            restaurant=order.restaurant,
+            order_items=order.order_items,
+            db = db,
+            customer=customer
+        )
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        print(repr(e.orig))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Order can't be canceled. Please try again later")
+    except SQLAlchemyError as e:
+        await db.rollback()
+        print(repr(e))
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to cancel the order")
+
     
+
+    return response
+
+async def return_request_service(
+        payload : CreateReturnRequest,
+        customer : CurrentCustomer,
+        order_id : str,
+        db : AsyncSession
+):
+    order = await db.scalar(select(
+        Orders
+    ).options(
+        joinedload(Orders.restaurant).joinedload(Restaurants.address),
+        selectinload(Orders.order_items)
+    ).where(
+        Orders.id == order_id,
+        Orders.customer_id == customer.id
+    ))
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Requested order not found for this user"
+        )
+
+    if order.status != OrderStatus.DELIVERED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only delievred can be returned"
+        )
+
+    check_return_table = await db.scalar(select(ReturnRequest.id).where(ReturnRequest.order_id == order.id))
+
+    if check_return_table:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Already return request opted"
+        )
+
+    new_return_request = ReturnRequest(
+        order_id = order.id,
+        customer_id = customer.id,
+        reason = payload.reason,
+        status = ReturnRequestStatus.REQUESTED,
+    )
+
+    db.add(new_return_request)
+
+    try:
+        await db.commit()
+        response = await _create_response(
+            order = order,
+            restaurant=order.restaurant,
+            order_items=order.order_items,
+            db = db,
+            customer=customer
+        )
+    except IntegrityError as e:
+        await db.rollback()
+        print(repr(e.orig))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to process return Request")
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to return the order")
+
+    return response
+
+async def customer_review_service(
+        order_id : str,
+        customer : CurrentCustomer,
+        payload : CreateReview,
+        db : AsyncSession
+):
+    order = await db.scalar(select(
+            Orders
+        ).options(
+            joinedload(Orders.restaurant).joinedload(Restaurants.address),
+            selectinload(Orders.order_items)
+        ).where(
+            Orders.id == order_id,
+            Orders.customer_id == customer.id
+        ))
+
+    if not order:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Requested order not found for this user"
+        )
+
+    if order.status != OrderStatus.DELIVERED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail= "Only Delivered order can be Reviewed"
+        )
+
+    new_review = Review(
+        order_id = order.id,
+        customer_id = customer.id,
+        restaurant_id = order.restaurant_id,
+        rating = payload.rating,
+        comment = payload.comment
+    )
+
+    db.add(new_review)
+
+    try:
+        await db.flush()
+        await db.commit()
+        response = {
+            "id" : new_review.id,
+            "order_id" : new_review.order_id,
+            "rating" : new_review.rating,
+            "comment" : new_review.comment,
+            "created_at" : new_review.created_at
+        }
+    except IntegrityError as e:
+        await db.rollback()
+        print(repr(e.orig))
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to add review")
+    except SQLAlchemyError:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to review the order")
+    
+    return response

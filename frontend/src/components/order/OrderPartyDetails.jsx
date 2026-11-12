@@ -88,7 +88,7 @@ export default function OrderPartyDetails({
       {order.return_request && <OrderReturnCard returnRequest={order.return_request} />}
 
       {/* Action Buttons: Cancel, Rate, Return */}
-      {isPlaced && (
+      {isPlaced && !isCancelling && (
         <div className="pt-2">
           <Button
             variant="danger"

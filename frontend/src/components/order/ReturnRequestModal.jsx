@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { requestReturn } from '../../api/orderApi';
 import { useConfirm } from '../../context/ConfirmContext';
@@ -28,12 +28,12 @@ export default function ReturnRequestModal({
   const [formError, setFormError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setReason('');
     setReasonError('');
     setFormError('');
     onClose?.();
-  };
+  }, [onClose]);
 
   const validate = () => {
     setReasonError('');

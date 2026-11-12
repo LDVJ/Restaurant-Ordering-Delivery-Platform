@@ -140,34 +140,30 @@ export const mockOwnerDb = {
     };
   },
 
-  async approveReturn(returnId) {
+  async updateReturnStatus(returnId, status) {
     await sleep();
+    if (status !== 'APPROVED' && status !== 'REJECTED') throw createError(400, 'Invalid status');
     const orders = loadOrders();
     const order = orders.find((o) => o.return_request?.id === returnId);
-    if (!order || order.return_request?.status !== 'REQUESTED') throw createError(400, 'Only REQUESTED return requests can be approved');
+    if (!order) throw createError(404, 'Return not found');
+    if (order.return_request?.status !== 'REQUESTED') throw createError(400, 'This return was already resolved');
     const nowIso = new Date().toISOString();
-    order.return_request.status = 'APPROVED';
+    order.return_request.status = status;
     order.return_request.resolved_at = nowIso;
-    order.return_status = 'APPROVED';
-    order.status = 'REFUNDED';
-    order.payment_status = 'REFUNDED';
+    order.return_status = status;
+    if (status === 'APPROVED') { order.status = 'REFUNDED'; order.payment_status = 'REFUNDED'; }
     order.status_updated_at = nowIso;
     saveOrders(orders);
-    return { id: returnId, status: 'APPROVED' };
-  },
-
-  async rejectReturn(returnId) {
-    await sleep();
-    const orders = loadOrders();
-    const order = orders.find((o) => o.return_request?.id === returnId);
-    if (!order || order.return_request?.status !== 'REQUESTED') throw createError(400, 'Only REQUESTED return requests can be rejected');
-    const nowIso = new Date().toISOString();
-    order.return_request.status = 'REJECTED';
-    order.return_request.resolved_at = nowIso;
-    order.return_status = 'REJECTED';
-    order.status_updated_at = nowIso;
-    saveOrders(orders);
-    return { id: returnId, status: 'REJECTED' };
+    return {
+      id: order.return_request.id,
+      order_id: order.id,
+      customer_name: order.customer?.name || order.customer_name || 'Customer',
+      reason: order.return_request.reason,
+      status,
+      created_at: order.return_request.created_at,
+      resolved_at: nowIso,
+      bill_amount: Number(order.bill_amount).toFixed(2),
+    };
   },
 
   async listReminders({ unread_only, page = 1, page_size = 10 } = {}) {

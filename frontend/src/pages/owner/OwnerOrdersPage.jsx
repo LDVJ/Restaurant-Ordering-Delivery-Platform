@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Package } from 'lucide-react';
@@ -27,83 +27,79 @@ export default function OwnerOrdersPage() {
   const [page, setPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  const statusParam = searchParams.get('status') || '';
-  const [dateFilters, setDateFilters] = useState({ date_from: '', date_to: '' });
-  const filters = { status: statusParam, ...dateFilters };
+  const [filters, setFilters] = useState({ status: searchParams.get('status') || '', date_from: '', date_to: '' });
 
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [assigningOrder, setAssigningOrder] = useState(null);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const requestIdRef = useRef(0);
 
-  // Load order from ?order=<id> on load (Correction 3)
   useEffect(() => {
     const orderId = searchParams.get('order');
     if (!orderId) return;
     let ignore = false;
-    async function loadInitial() {
-      try {
-        const data = await ownerApi.getOwnerOrderById(orderId);
-        if (!ignore) { setSelectedOrder(data); setIsDetailOpen(true); }
-      } catch { /* ignore */ }
-    }
-    loadInitial();
+    (async () => {
+      const found = orders.find((o) => o.id === orderId);
+      if (found) { setSelectedOrder(found); setIsDetailOpen(true); }
+      else {
+        try {
+          const d = await ownerApi.getOwnerOrderById(orderId);
+          if (!ignore && d) { setSelectedOrder(d); setIsDetailOpen(true); }
+        } catch { /* ignore */ }
+      }
+    })();
     return () => { ignore = true; };
-  }, [searchParams]);
+  }, [searchParams, orders]);
+
+  const buildParams = (p, f) => ({
+    page: p, page_size: 10,
+    ...(f.status && { status: f.status }),
+    ...(f.date_from && { date_from: f.date_from }),
+    ...(f.date_to && { date_to: f.date_to }),
+  });
+
+  const refreshOrders = useCallback(async () => {
+    try {
+      const data = await ownerApi.getOwnerOrders(buildParams(page, filters));
+      setOrders(data.items || []); setTotal(data.total || 0); setTotalPages(data.total_page || data.total_pages || 1);
+    } catch { /* silent */ }
+  }, [page, filters]);
 
   useEffect(() => {
     let ignore = false;
     async function load() {
+      const reqId = ++requestIdRef.current;
+      setIsLoading(true);
       try {
-        const params = { page, page_size: 10, ...(statusParam && { status: statusParam }), ...(dateFilters.date_from && { date_from: dateFilters.date_from }), ...(dateFilters.date_to && { date_to: dateFilters.date_to }) };
-        const data = await ownerApi.getOwnerOrders(params);
-        if (!ignore) { setOrders(data.items || []); setTotal(data.total || 0); setTotalPages(data.total_pages || 1); setError(null); }
+        const data = await ownerApi.getOwnerOrders(buildParams(page, filters));
+        if (!ignore && reqId === requestIdRef.current) {
+          setOrders(data.items || []); setTotal(data.total || 0); setTotalPages(data.total_page || data.total_pages || 1); setError(null);
+        }
       } catch (err) {
-        if (!ignore) setError(getErrorMessage(err));
+        if (!ignore && reqId === requestIdRef.current) setError(getErrorMessage(err));
       } finally {
-        if (!ignore) setIsLoading(false);
+        if (!ignore && reqId === requestIdRef.current) setIsLoading(false);
       }
     }
     load();
     return () => { ignore = true; };
-  }, [page, statusParam, dateFilters.date_from, dateFilters.date_to]);
+  }, [page, filters]);
 
-  const pollSilent = useCallback(async () => {
-    try {
-      const params = { page, page_size: 10, ...(statusParam && { status: statusParam }), ...(dateFilters.date_from && { date_from: dateFilters.date_from }), ...(dateFilters.date_to && { date_to: dateFilters.date_to }) };
-      const data = await ownerApi.getOwnerOrders(params);
-      setOrders(data.items || []); setTotal(data.total || 0); setTotalPages(data.total_pages || 1);
-    } catch { /* silent */ }
-  }, [page, statusParam, dateFilters.date_from, dateFilters.date_to]);
+  usePolling(refreshOrders, 30000);
 
-  usePolling(pollSilent, 30000);
+  const handleOpenDetail = (orderItem) => { setSelectedOrder(orderItem); setIsDetailOpen(true); };
 
-  const handleOpenDetail = async (orderSummary) => {
-    try {
-      const full = await ownerApi.getOwnerOrderById(orderSummary.id);
-      setSelectedOrder(full);
-    } catch { setSelectedOrder(orderSummary); }
-    setIsDetailOpen(true);
-  };
-
-  const handleFilterChange = (f) => {
+  const handleApplyFilters = (newFilters) => {
     const nextParams = new URLSearchParams(searchParams);
-    if (f.status) nextParams.set('status', f.status);
-    else nextParams.delete('status');
-    setSearchParams(nextParams);
-    setDateFilters({ date_from: f.date_from, date_to: f.date_to });
-    setPage(1);
-    setIsLoading(true);
+    if (newFilters.status) nextParams.set('status', newFilters.status); else nextParams.delete('status');
+    setSearchParams(nextParams); setFilters(newFilters); setPage(1);
   };
 
   const handleResetFilters = () => {
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete('status');
-    setSearchParams(nextParams);
-    setDateFilters({ date_from: '', date_to: '' });
-    setPage(1);
-    setIsLoading(true);
+    setSearchParams(nextParams); setFilters({ status: '', date_from: '', date_to: '' }); setPage(1);
   };
 
   const handleStatusAction = async (order, nextStatus) => {
@@ -113,16 +109,17 @@ export default function OwnerOrdersPage() {
 
     const ok = await confirm({
       title: cfg.title,
-      message: cfg.msg(shortId, order.customer_name || 'customer', formatCurrency(order.bill_amount)),
-      confirmText: cfg.confirmText,
-      cancelText: 'Cancel',
+      message: cfg.msg(shortId, order.customer?.name || order.customer_name || 'customer', formatCurrency(order.bill_amount)),
+      confirmText: cfg.confirmText, cancelText: 'Cancel',
     });
     if (!ok) return;
 
     setIsActionLoading(true);
     try {
-      const updated = await ownerApi.updateOrderStatus(order.id, nextStatus);
-      setOrders((prev) => prev.map((o) => (o.id === order.id ? { ...o, status: updated.status, status_updated_at: updated.status_updated_at } : o)));
+      const res = await ownerApi.updateOrderStatus(order.id, nextStatus);
+      const isOrderObj = res && typeof res === 'object' && res.id;
+      const updated = isOrderObj ? res : await ownerApi.getOwnerOrderById(order.id);
+      setOrders((prev) => prev.map((o) => (o.id === order.id ? updated : o)));
       if (selectedOrder?.id === order.id) setSelectedOrder(updated);
       toast.success(`Order moved to ${nextStatus}`);
       if (refreshBadges) refreshBadges();
@@ -133,8 +130,9 @@ export default function OwnerOrdersPage() {
     }
   };
 
-  const handleAssignSuccess = (updated) => {
-    setOrders((prev) => prev.map((o) => (o.id === updated.id ? { ...o, status: updated.status, status_updated_at: updated.status_updated_at } : o)));
+  const handleAssignSuccess = async (res) => {
+    const updated = (res && typeof res === 'object' && res.id) ? res : await ownerApi.getOwnerOrderById(selectedOrder?.id || assigningOrder?.id);
+    setOrders((prev) => prev.map((o) => (o.id === updated.id ? updated : o)));
     if (selectedOrder?.id === updated.id) setSelectedOrder(updated);
     toast.success('Delivery partner assigned');
     if (refreshBadges) refreshBadges();
@@ -147,7 +145,7 @@ export default function OwnerOrdersPage() {
         <p className="text-xs sm:text-sm text-muted-text mt-1">Live kitchen order progression, partner dispatching, and tracking.</p>
       </div>
 
-      <OwnerOrderFilters filters={filters} onFilterChange={handleFilterChange} onReset={handleResetFilters} />
+      <OwnerOrderFilters filters={filters} onApply={handleApplyFilters} onReset={handleResetFilters} />
 
       {isLoading ? (
         <div className="space-y-3"><Skeleton className="h-28 w-full rounded-2xl" /><Skeleton className="h-28 w-full rounded-2xl" /></div>
@@ -159,14 +157,7 @@ export default function OwnerOrdersPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {orders.map((order) => (
-              <OwnerOrderCard
-                key={order.id}
-                order={order}
-                onOpenDetail={handleOpenDetail}
-                onStatusAction={handleStatusAction}
-                onOpenAssign={(o) => setAssigningOrder(o)}
-                isActionLoading={isActionLoading}
-              />
+              <OwnerOrderCard key={order.id} order={order} onOpenDetail={handleOpenDetail} onStatusAction={handleStatusAction} onOpenAssign={(o) => setAssigningOrder(o)} isActionLoading={isActionLoading} />
             ))}
           </div>
           {totalPages > 1 && (
@@ -178,7 +169,7 @@ export default function OwnerOrdersPage() {
       {isDetailOpen && selectedOrder && (
         <OwnerOrderDetailModal
           isOpen={isDetailOpen}
-          onClose={() => { setIsDetailOpen(false); if (searchParams.get('order')) setSearchParams(statusParam ? { status: statusParam } : {}); }}
+          onClose={() => { setIsDetailOpen(false); if (searchParams.get('order')) setSearchParams(filters.status ? { status: filters.status } : {}); }}
           order={selectedOrder}
           onStatusAction={handleStatusAction}
           onOpenAssign={(o) => setAssigningOrder(o)}

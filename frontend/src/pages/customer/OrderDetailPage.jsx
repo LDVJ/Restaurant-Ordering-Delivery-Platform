@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -31,33 +31,44 @@ export default function OrderDetailPage() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isReturnModalOpen, setIsReturnModalOpen] = useState(false);
 
+  const requestIdRef = useRef(0);
+  const pollAbortControllerRef = useRef(null);
+
   useEffect(() => {
     let ignore = false;
     async function loadOrder() {
+      const currentReqId = ++requestIdRef.current;
       try {
         const data = await getOrderById(id);
-        if (!ignore) {
+        if (!ignore && currentReqId === requestIdRef.current) {
           setOrder(data);
           setError(null);
         }
       } catch (err) {
-        if (!ignore) setError(getErrorMessage(err));
+        if (!ignore && currentReqId === requestIdRef.current) setError(getErrorMessage(err));
       } finally {
-        if (!ignore) setIsLoading(false);
+        if (!ignore && currentReqId === requestIdRef.current) setIsLoading(false);
       }
     }
     loadOrder();
-    return () => {
-      ignore = true;
-    };
+    return () => { ignore = true; };
   }, [id, reloadTrigger]);
 
-  const isTerminal = ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order?.status);
+  // Stop polling only when status is CANCELLED or REFUNDED. Keep polling DELIVERED so return approval is picked up.
+  const isTerminal = ['CANCELLED', 'REFUNDED'].includes(order?.status);
+  const isActionRunning = isCancelling || isAdvancing;
+
   usePolling(async () => {
-    if (!id || isTerminal) return;
-    const latest = await getOrderById(id);
-    setOrder(latest);
-  }, 20000, !isTerminal && Boolean(order));
+    if (!id || isTerminal || isActionRunning) return;
+    pollAbortControllerRef.current?.abort();
+    const controller = new AbortController();
+    pollAbortControllerRef.current = controller;
+    const currentReqId = ++requestIdRef.current;
+    try {
+      const latest = await getOrderById(id, { signal: controller.signal });
+      if (currentReqId === requestIdRef.current && latest) setOrder(latest);
+    } catch { /* ignore aborted/background error */ }
+  }, 60000, !isTerminal && Boolean(order) && !isActionRunning);
 
   const handleCancel = async () => {
     const ok = await confirm({
@@ -69,10 +80,13 @@ export default function OrderDetailPage() {
     });
     if (!ok) return;
 
+    pollAbortControllerRef.current?.abort();
+    pollAbortControllerRef.current = null;
+    const cancelReqId = ++requestIdRef.current;
     setIsCancelling(true);
     try {
       const updated = await cancelOrder(id);
-      setOrder(updated);
+      if (cancelReqId === requestIdRef.current && updated) setOrder(updated);
       toast.success('Order cancelled');
     } catch (err) {
       toast.error(getErrorMessage(err));
@@ -111,10 +125,7 @@ export default function OrderDetailPage() {
           title="Order not found"
           message={error || 'Could not locate the requested order.'}
           actionText="Back to my orders"
-          onAction={() => {
-            setIsLoading(true);
-            setReloadTrigger((prev) => prev + 1);
-          }}
+          onAction={() => { setIsLoading(true); setReloadTrigger((prev) => prev + 1); }}
         />
       </div>
     );
@@ -122,23 +133,11 @@ export default function OrderDetailPage() {
 
   return (
     <div className="space-y-6 pb-20 text-left max-w-4xl mx-auto">
-      <Link
-        to="/dashboard"
-        className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-muted-text hover:text-brand transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        <span>Back to my orders</span>
+      <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-muted-text hover:text-brand transition-colors">
+        <ArrowLeft className="w-4 h-4" /><span>Back to my orders</span>
       </Link>
-
-      <OrderDetailHeader
-        order={order}
-        onDevAdvance={handleDevAdvance}
-        isAdvancing={isAdvancing}
-        isTerminal={isTerminal}
-      />
-
+      <OrderDetailHeader order={order} onDevAdvance={handleDevAdvance} isAdvancing={isAdvancing} isTerminal={isTerminal} />
       <OrderTimeline status={order.status} />
-
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7">
           <OrderPartyDetails
@@ -149,37 +148,26 @@ export default function OrderDetailPage() {
             isCancelling={isCancelling}
           />
         </div>
-
         <div className="lg:col-span-5 sticky top-20">
           <OrderDetailItems items={order.items} billAmount={order.bill_amount} />
         </div>
       </div>
-
       {isReviewModalOpen && (
         <ReviewModal
           isOpen={isReviewModalOpen}
           onClose={() => setIsReviewModalOpen(false)}
           orderId={order.id}
           restaurantName={order.restaurant?.name}
-          onSubmitSuccess={(reviewData) => {
-            setOrder((prev) => ({ ...prev, review: reviewData, has_review: true }));
-          }}
+          onSubmitSuccess={(reviewData) => setOrder((prev) => ({ ...prev, review: reviewData, has_review: true }))}
         />
       )}
-
       {isReturnModalOpen && (
         <ReturnRequestModal
           isOpen={isReturnModalOpen}
           onClose={() => setIsReturnModalOpen(false)}
           orderId={order.id}
           restaurantName={order.restaurant?.name}
-          onSubmitSuccess={(returnData) => {
-            setOrder((prev) => ({
-              ...prev,
-              return_request: returnData,
-              return_status: returnData.status,
-            }));
-          }}
+          onSubmitSuccess={(returnData) => setOrder((prev) => ({ ...prev, return_request: returnData, return_status: returnData.status }))}
         />
       )}
     </div>

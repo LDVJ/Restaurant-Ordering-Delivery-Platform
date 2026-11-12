@@ -49,13 +49,13 @@ export default function OwnerOrderDetailContent({ order }) {
       )}
 
       {/* Return Request details */}
-      {order.return_request && (
+      {(order.return_request || order.return_status) && (
         <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
           <p className="font-bold text-amber-900 flex items-center gap-1.5">
             <ShieldAlert className="w-3.5 h-3.5 text-amber-700" />
-            <span>Return Request ({order.return_request.status})</span>
+            <span>Return Request ({typeof order.return_request === 'string' ? order.return_request : (order.return_request?.status || order.return_status)})</span>
           </p>
-          <p className="text-amber-800">Reason: {order.return_request.reason}</p>
+          {order.return_request?.reason && <p className="text-amber-800">Reason: {order.return_request.reason}</p>}
         </div>
       )}
 

@@ -19,8 +19,13 @@ export default function Modal({
 }) {
   const previousActiveElementRef = useRef(null);
   const modalBoxRef = useRef(null);
+  const onCloseRef = useRef(onClose);
 
-  // Handle escape key, body scroll lock, and focus restore
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  // Handle escape key, body scroll lock, and initial focus only when modal opens
   useEffect(() => {
     if (!isOpen) return;
 
@@ -31,7 +36,7 @@ export default function Modal({
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Focus the modal box or first focusable element inside it
+    // Focus the modal box or first focusable element inside it on open
     const timer = setTimeout(() => {
       const focusable = modalBoxRef.current?.querySelector(
         'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -46,7 +51,7 @@ export default function Modal({
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose?.();
+        onCloseRef.current?.();
       }
     };
 
@@ -64,14 +69,14 @@ export default function Modal({
         previousActiveElementRef.current.focus();
       }
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   // Handle backdrop click: closes only when clicking the backdrop container itself
   const handleBackdropClick = (e) => {
     if (e.target === e.currentTarget) {
-      onClose?.();
+      onCloseRef.current?.();
     }
   };
 
@@ -93,7 +98,7 @@ export default function Modal({
         {showCloseButton && (
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => onCloseRef.current?.()}
             aria-label="Close dialog"
             className="absolute top-4 right-4 p-1.5 rounded-lg text-muted-text hover:text-text-main hover:bg-gray-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >

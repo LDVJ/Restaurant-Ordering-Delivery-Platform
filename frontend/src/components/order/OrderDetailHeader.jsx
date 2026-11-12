@@ -43,7 +43,6 @@ export default function OrderDetailHeader({
             <h1 className="text-2xl sm:text-3xl font-extrabold text-brand tracking-tight">
               {formatOrderNumber(order.id)}
             </h1>
-            <p className="text-[11px] font-mono text-muted-text mt-0.5">Full ID: {order.id}</p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">

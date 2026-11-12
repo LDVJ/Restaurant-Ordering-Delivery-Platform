@@ -24,7 +24,8 @@ class Orders(Base):
     contact_phone: Mapped[str] = mapped_column(String(20), nullable=False)
     status_updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     
-    restaurant : Mapped["Restaurants"] = relationship()
+    delivery_partner : Mapped["Users | None"] = relationship(foreign_keys=[delivery_partner_id])
+    restaurant : Mapped["Restaurants"] = relationship(foreign_keys=[restaurant_id])
     order_items : Mapped[list["OrderItems"]] = relationship(back_populates="order_info")
     customer : Mapped["Users"] = relationship(back_populates="orders", foreign_keys=[customer_id])
 

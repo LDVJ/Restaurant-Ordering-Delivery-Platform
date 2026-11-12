@@ -3,6 +3,7 @@ import { Bell, Check, ExternalLink } from 'lucide-react';
 import { formatDateTime } from '../../utils/format';
 import StatusBadge from '../ui/StatusBadge';
 import Button from '../ui/Button';
+import Skeleton from '../ui/Skeleton';
 
 export default function OwnerRemindersPanel({
   reminders = [],
@@ -26,7 +27,12 @@ export default function OwnerRemindersPanel({
         <span className="text-[11px] text-muted-text">Orders delayed &gt; 15 mins</span>
       </div>
 
-      {reminders.length === 0 ? (
+      {isLoading ? (
+        <div className="space-y-2">
+          <Skeleton className="h-16 w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
+      ) : reminders.length === 0 ? (
         <div className="py-6 text-center text-xs text-muted-text space-y-1">
           <p className="font-semibold text-emerald-700">All clear! No delayed orders.</p>
           <p>Orders delayed in acceptance or preparation will appear here.</p>

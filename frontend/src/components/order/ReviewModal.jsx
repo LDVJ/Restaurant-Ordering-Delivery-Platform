@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { submitReview } from '../../api/orderApi';
@@ -35,13 +35,13 @@ export default function ReviewModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setRating(5);
     setHoverRating(0);
     setComment('');
     setFormError('');
     onClose?.();
-  };
+  }, [onClose]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

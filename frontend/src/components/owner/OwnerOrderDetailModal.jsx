@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PAYMENT_STATUS_CONFIG, RETURN_STATUS_CONFIG } from '../../utils/constants';
-import { formatDateTime } from '../../utils/format';
+import { formatDateTime, canAssign } from '../../utils/format';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import StatusBadge from '../ui/StatusBadge';
@@ -20,7 +20,8 @@ export default function OwnerOrderDetailModal({
 
   const shortId = order.id.slice(0, 8).toUpperCase();
   const payConfig = PAYMENT_STATUS_CONFIG[order.payment_status] || PAYMENT_STATUS_CONFIG.MOCK_PAID;
-  const retConfig = order.return_status ? RETURN_STATUS_CONFIG[order.return_status] : null;
+  const retStatus = order.return_status || (typeof order.return_request === 'string' ? order.return_request : order.return_request?.status);
+  const retConfig = retStatus ? RETURN_STATUS_CONFIG[retStatus] : null;
 
   const renderAction = () => {
     if (order.status === 'PLACED') {
@@ -65,7 +66,7 @@ export default function OwnerOrderDetailModal({
         </Button>
       );
     }
-    if (order.status === 'READY') {
+    if (canAssign(order)) {
       return (
         <Button
           type="button"
@@ -76,6 +77,13 @@ export default function OwnerOrderDetailModal({
         >
           Assign delivery partner
         </Button>
+      );
+    }
+    if (order.status === 'READY' && order.delivery_partner) {
+      return (
+        <span className="text-xs font-semibold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-lg border border-purple-200">
+          Assigned to {order.delivery_partner.name} ({order.delivery_partner.phone})
+        </span>
       );
     }
     return null;

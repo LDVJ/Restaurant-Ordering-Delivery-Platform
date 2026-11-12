@@ -1,15 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Store, UtensilsCrossed, Settings, MapPin, Phone, Shield } from 'lucide-react';
 import * as ownerApi from '../../api/ownerApi';
 import { getErrorMessage } from '../../utils/errors';
+import { usePolling } from '../../hooks/usePolling';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import Skeleton from '../../components/ui/Skeleton';
 import OwnerStatCards from '../../components/owner/OwnerStatCards';
-import OwnerStatusRow from '../../components/owner/OwnerStatusRow';
-import OwnerTopItems from '../../components/owner/OwnerTopItems';
 import OwnerRemindersPanel from '../../components/owner/OwnerRemindersPanel';
 
 export default function OwnerDashboardPage() {
@@ -17,32 +16,76 @@ export default function OwnerDashboardPage() {
   const addr = restaurant?.address;
 
   const [stats, setStats] = useState(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [statsError, setStatsError] = useState(null);
+
   const [reminders, setReminders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isRemindersLoading, setIsRemindersLoading] = useState(true);
+  const [remindersError, setRemindersError] = useState(null);
+
+  const loadStats = useCallback(async (isInitial = false) => {
+    if (isInitial) {
+      setIsStatsLoading(true);
+      setStatsError(null);
+    }
+    try {
+      const data = await ownerApi.getOwnerStats();
+      setStats(data);
+      if (isInitial) setStatsError(null);
+    } catch (err) {
+      if (isInitial) setStatsError(getErrorMessage(err));
+    } finally {
+      if (isInitial) setIsStatsLoading(false);
+    }
+  }, []);
+
+  const loadReminders = useCallback(async (isInitial = false) => {
+    if (isInitial) {
+      setIsRemindersLoading(true);
+      setRemindersError(null);
+    }
+    try {
+      const data = await ownerApi.getOwnerReminders({ page_size: 10 });
+      setReminders(data.items || []);
+      if (isInitial) setRemindersError(null);
+    } catch (err) {
+      if (isInitial) setRemindersError(getErrorMessage(err));
+    } finally {
+      if (isInitial) setIsRemindersLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let ignore = false;
-    async function loadDashboardData() {
+    async function init() {
       try {
-        const [statsData, remindersData] = await Promise.all([
-          ownerApi.getOwnerStats(),
-          ownerApi.getOwnerReminders({ page_size: 10 }),
-        ]);
-        if (!ignore) {
-          setStats(statsData);
-          setReminders(remindersData.items || []);
-          setError(null);
-        }
+        const statsData = await ownerApi.getOwnerStats();
+        if (!ignore) setStats(statsData);
       } catch (err) {
-        if (!ignore) setError(getErrorMessage(err));
+        if (!ignore) setStatsError(getErrorMessage(err));
       } finally {
-        if (!ignore) setIsLoading(false);
+        if (!ignore) setIsStatsLoading(false);
+      }
+
+      try {
+        const remindersData = await ownerApi.getOwnerReminders({ page_size: 10 });
+        if (!ignore) setReminders(remindersData.items || []);
+      } catch (err) {
+        if (!ignore) setRemindersError(getErrorMessage(err));
+      } finally {
+        if (!ignore) setIsRemindersLoading(false);
       }
     }
-    loadDashboardData();
+    init();
     return () => { ignore = true; };
   }, []);
+
+  usePolling(async () => {
+    await Promise.allSettled([
+      loadStats(false),
+      loadReminders(false),
+    ]);
+  }, 60000);
 
   const handleMarkReminderRead = async (id) => {
     try {
@@ -60,7 +103,6 @@ export default function OwnerDashboardPage() {
 
   return (
     <div className="space-y-6 text-left max-w-5xl pb-10">
-      {/* 1. Restaurant Summary Card */}
       <div className="bg-white rounded-2xl border border-border p-6 sm:p-7 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-border/70 pb-4">
           <div className="flex items-start gap-3">
@@ -107,31 +149,32 @@ export default function OwnerDashboardPage() {
         </div>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-4">
-          <Skeleton className="h-28 w-full rounded-2xl" />
-          <Skeleton className="h-24 w-full rounded-2xl" />
+      {isStatsLoading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+          ))}
         </div>
-      ) : error ? (
-        <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-xl text-xs">{error}</div>
+      ) : statsError ? (
+        <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-xl text-xs flex items-center justify-between">
+          <span>Failed to load stats: {statsError}</span>
+          <Button size="sm" variant="outline" onClick={() => loadStats(true)}>Retry</Button>
+        </div>
       ) : (
-        <>
-          {/* 2. Stat Cards Grid */}
-          <OwnerStatCards stats={stats} />
+        <OwnerStatCards stats={stats} />
+      )}
 
-          {/* 3. Orders by Lifecycle Status Row */}
-          <OwnerStatusRow statusCounts={stats?.orders_by_status} />
-
-          {/* 4. Top Items and Reminders */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-            <div className="lg:col-span-5">
-              <OwnerTopItems topItems={stats?.top_items} />
-            </div>
-            <div className="lg:col-span-7">
-              <OwnerRemindersPanel reminders={reminders} onMarkRead={handleMarkReminderRead} />
-            </div>
-          </div>
-        </>
+      {remindersError ? (
+        <div className="p-4 bg-red-50 border border-red-200 text-danger rounded-xl text-xs flex items-center justify-between">
+          <span>Failed to load reminders: {remindersError}</span>
+          <Button size="sm" variant="outline" onClick={() => loadReminders(true)}>Retry</Button>
+        </div>
+      ) : (
+        <OwnerRemindersPanel
+          reminders={reminders}
+          onMarkRead={handleMarkReminderRead}
+          isLoading={isRemindersLoading}
+        />
       )}
     </div>
   );

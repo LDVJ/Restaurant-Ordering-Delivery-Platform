@@ -25,10 +25,9 @@ class ReturnRequest(Base):
     customer_id : Mapped[str] = mapped_column(ForeignKey("users.id"), nullable=False, index=True)
     reason : Mapped[str] = mapped_column(Text, nullable=False)
     status : Mapped[ReturnRequestStatus] = mapped_column(SQLEnum(ReturnRequestStatus, name="return_request_status"), nullable=False, default=ReturnRequestStatus.REQUESTED)
-    resolved_by : Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True)
+    # resolved_by : Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"), nullable=True, index=True)
     created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     resolved_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
 
     customer : Mapped["Users"] = relationship(foreign_keys=[customer_id])
-    resolver : Mapped["Users"] = relationship(foreign_keys=[resolved_by])
     order :  Mapped["Orders"] = relationship(foreign_keys=[order_id])

@@ -114,4 +114,8 @@ export function isOrderDelayed(status, statusUpdatedAt) {
   return Date.now() - new Date(statusUpdatedAt).getTime() > 15 * 60 * 1000;
 }
 
+export function canAssign(order) {
+  return Boolean(order && order.status === 'READY' && !order.delivery_partner);
+}
+
 

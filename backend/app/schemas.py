@@ -147,7 +147,7 @@ class CreateMenuItem(BaseModel):
     name : str
     description : str
     price : Decimal = Field(gt=0)
-    is_available : bool
+    is_available : bool | None = True
 
     model_config = ConfigDict(
         str_strip_whitespace=True
@@ -441,7 +441,6 @@ class CustomerOrderItemResponse(BaseModel):
 class OrderRestaurant(BaseModel):
     id : str
     name : str
-    address : str 
     phone :  str 
 
     model_config = ConfigDict(
@@ -449,6 +448,11 @@ class OrderRestaurant(BaseModel):
     )
 
 class OrderUserInfo(BaseModel):
+    id : str
+    name : str
+    phone : str
+
+class OrderDeliveryPartnerInfo(BaseModel):
     id : str
     name : str
     phone : str
@@ -471,12 +475,30 @@ class CustomerOrderResponse(BaseModel):
     restaurant : OrderRestaurant
     items : list[CustomerOrderItemResponse]
     # customer : OrderUserInfo 
-    delivery_partner : UserResponse | None = None
+    delivery_partner : OrderDeliveryPartnerInfo | None = None
     review : int | None = None
     return_request : ReturnRequestStatus | None = None
 
-class OwnerOrderResponse(CustomerOrderResponse):
-    customer : OrderUserInfo
+class OwnerOrderResponse(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    id : str
+    status : OrderStatus
+    payment_status : PaymentStatus
+    bill_amount : Decimal
+    created_at : datetime
+    status_updated_at : datetime | None = None
+    delivered_at : datetime | None = None
+    delivery_address : str 
+    contact_phone : str 
+    # restaurant : OrderRestaurant
+    items : list[CustomerOrderItemResponse]
+    customer : OrderUserInfo 
+    delivery_partner : OrderDeliveryPartnerInfo | None = None
+    review : int | None = None
+    return_request : ReturnRequestStatus | None = None
 
 
 class AllOwnerOrderResponse(BaseModel):
@@ -485,12 +507,22 @@ class AllOwnerOrderResponse(BaseModel):
     )
 
     items : list[OwnerOrderResponse]
+    total : int
+    page : int
+    page_size : int
+    total_page : int
+    
 
 class CustomerAllOrders(BaseModel):
+
+    model_config =  ConfigDict(
+        from_attributes=True
+    )
+
     id : str
     status : OrderStatus
     payment_status : PaymentStatus
-    bill_amount : str
+    bill_amount : Decimal
     created_at : datetime
     restaurant : OrderRestaurant
     items : list[CustomerOrderItemResponse]
@@ -498,8 +530,147 @@ class CustomerAllOrders(BaseModel):
     has_review : int | None = None
 
 class CustomerAllOrdersResponse(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
     items :  list[CustomerAllOrders]
     total : int
     page : int
     page_size : int
     total_page : int
+
+class CreateReturnRequest(BaseModel):
+
+    model_config  = ConfigDict(
+        from_attributes=True
+    )
+
+    reason : str = Field(min_length=5, max_length=500)
+
+class CreateReview(BaseModel):
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    rating : int = Field(ge=1, le=5)
+    comment : str = Field(max_length=500)
+
+class ReviewResponse(BaseModel):
+    id : str
+    order_id : str
+    rating : int
+    comment : str
+    created_at : datetime
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+class RestaurantDashboardResponse(BaseModel):
+    todays_order : int
+    total_orders : int
+    total_revenue : Decimal
+    average_rating : Decimal
+    pending_returns : int
+
+class AssignDeliveryPartnerID(BaseModel):
+    delivery_partner_id : str
+
+class AllOrderDeliveryPartnerInfo(BaseModel):
+    model_config = ConfigDict(
+            from_attributes=True
+        )
+
+    items : list[OrderDeliveryPartnerInfo]
+
+class UpdateStatus(BaseModel):
+    status : OrderStatus
+
+
+class ReminderOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+ 
+    id: str
+    order_id: str
+    order_status: OrderStatus
+    message: str
+    is_read: bool
+    created_at: datetime
+
+ 
+class ReminderPage(BaseModel):
+
+    model_config = ConfigDict(
+            from_attributes=True
+        )
+
+    items: list[ReminderOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+
+
+class OwnerOrderReturn(BaseModel):
+
+    model_config = ConfigDict(
+            from_attributes=True
+        )
+
+    id : str
+    order_id : str
+    customer_name : str
+    reason : str 
+    status : ReturnRequestStatus
+    created_at : datetime
+    resolved_at : datetime | None = None
+    bill_amount : Decimal
+
+class AllOwnerOrderReturnsResponse(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    items : list[OwnerOrderReturn]
+    page : int
+    page_size : int
+    total : int
+    total_pages : int
+
+class UpdateReturnStatus(BaseModel):
+    status : ReturnRequestStatus
+
+class DeliveryOrderResponse(BaseModel):
+    model_config = ConfigDict(
+            from_attributes=True
+    )
+
+    id : str
+    status : OrderStatus
+    payment_status : PaymentStatus
+    bill_amount : Decimal
+    created_at : datetime
+    delivered_at : datetime | None = None
+    delivery_address : str 
+    contact_phone : str 
+    restaurant : OrderRestaurant
+    items : list[CustomerOrderItemResponse]
+    customer : OrderUserInfo 
+
+class AllDeliveryOrderResponse(BaseModel):
+
+    model_config = ConfigDict(
+        from_attributes=True
+    )
+
+    items : list[DeliveryOrderResponse]
+    page : int
+    total : int
+    page_size : int
+    total_pages : int
+
+class UpdateDeliveryStatus(BaseModel):
+    status : OrderStatus

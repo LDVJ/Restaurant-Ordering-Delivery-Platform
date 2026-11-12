@@ -72,7 +72,7 @@ export async function updateOrderStatus(id, status) {
 export async function getDeliveryPartners() {
   if (USE_MOCK_ORDERS) return mockOwnerDb.listDeliveryPartners();
   const res = await axiosClient.get('/owner/delivery-partners');
-  return res.data;
+  return res.data.items;
 }
 
 export async function assignDeliveryPartner(id, deliveryPartnerId) {
@@ -88,15 +88,9 @@ export async function getOwnerReturns(params = {}) {
   return res.data;
 }
 
-export async function approveReturn(id) {
-  if (USE_MOCK_RETURNS) return mockOwnerDb.approveReturn(id);
-  const res = await axiosClient.post(`/owner/returns/${id}/approve`);
-  return res.data;
-}
-
-export async function rejectReturn(id) {
-  if (USE_MOCK_RETURNS) return mockOwnerDb.rejectReturn(id);
-  const res = await axiosClient.post(`/owner/returns/${id}/reject`);
+export async function updateReturnStatus(id, status) {
+  if (USE_MOCK_RETURNS) return mockOwnerDb.updateReturnStatus(id, status);
+  const res = await axiosClient.post(`/owner/returns/${id}/status`, { status });
   return res.data;
 }
 

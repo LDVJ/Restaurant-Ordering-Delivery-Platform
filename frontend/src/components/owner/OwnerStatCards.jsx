@@ -2,35 +2,37 @@ import { ShoppingBag, TrendingUp, Star, RotateCcw, Calendar } from 'lucide-react
 import { formatCurrency } from '../../utils/format';
 
 export default function OwnerStatCards({ stats }) {
+  const ratingNum = Number(stats?.average_rating || 0);
+  const ratingDisplay = ratingNum === 0 ? '—' : `${ratingNum.toFixed(1)} ★`;
+
   const cards = [
     {
       label: "Today's Orders",
-      value: stats?.today_orders ?? 0,
+      value: stats ? stats.todays_order : 0,
       icon: Calendar,
       color: 'text-blue-600 bg-blue-50',
     },
     {
       label: 'Total Orders',
-      value: stats?.total_orders ?? 0,
+      value: stats ? stats.total_orders : 0,
       icon: ShoppingBag,
       color: 'text-indigo-600 bg-indigo-50',
     },
     {
       label: 'Total Revenue',
-      value: formatCurrency(stats?.revenue || 0),
+      value: formatCurrency(Number(stats?.total_revenue || 0).toFixed(2)),
       icon: TrendingUp,
       color: 'text-emerald-600 bg-emerald-50',
     },
     {
       label: 'Average Rating',
-      value: stats?.avg_rating ? `${stats.avg_rating} ★` : 'No reviews',
-      subtext: stats?.review_count ? `${stats.review_count} reviews` : 'New kitchen',
+      value: ratingDisplay,
       icon: Star,
       color: 'text-amber-600 bg-amber-50',
     },
     {
       label: 'Pending Returns',
-      value: stats?.pending_returns ?? 0,
+      value: stats ? stats.pending_returns : 0,
       icon: RotateCcw,
       color: 'text-red-600 bg-red-50',
     },
@@ -50,7 +52,6 @@ export default function OwnerStatCards({ stats }) {
             </div>
             <div>
               <p className="text-xl sm:text-2xl font-bold text-text-main tracking-tight leading-tight">{c.value}</p>
-              {c.subtext && <p className="text-[11px] text-muted-text mt-0.5">{c.subtext}</p>}
             </div>
           </div>
         );

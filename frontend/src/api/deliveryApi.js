@@ -18,14 +18,21 @@ const USE_MOCK_DELIVERY = isMocked('delivery');
 
 /**
  * Get orders assigned to the delivery partner
- * @param {Object} params - { status, page, page_size }
- * Note: When status is omitted/empty, returns active orders (ASSIGNED, OUT_FOR_DELIVERY)
+ * @param {Object} params - { status, order_status, page, page_size }
  */
 export async function getDeliveryOrders(params = {}) {
+  const statusVal = params.order_status || params.status;
   if (USE_MOCK_DELIVERY) {
-    return mockDeliveryDb.listOrders(params);
+    return mockDeliveryDb.listOrders({ ...params, status: statusVal });
   }
-  const response = await axiosClient.get('/delivery/orders', { params });
+  const query = {
+    page: params.page || 1,
+    page_size: params.page_size || 10,
+  };
+  if (statusVal) {
+    query.order_status = statusVal;
+  }
+  const response = await axiosClient.get('/delivery/orders', { params: query });
   return response.data;
 }
 

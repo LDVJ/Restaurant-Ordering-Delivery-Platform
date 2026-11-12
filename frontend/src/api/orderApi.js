@@ -36,6 +36,24 @@ async function probeRealApi(requestFn) {
 }
 
 /**
+ * Normalize single order detail returned from backend
+ */
+function normalizeOrder(order) {
+  if (!order) return null;
+  return {
+    ...order,
+    review:
+      typeof order.review === 'number'
+        ? { rating: order.review, comment: '' }
+        : order.review,
+    return_request:
+      typeof order.return_request === 'string'
+        ? { status: order.return_request, reason: '' }
+        : order.return_request,
+  };
+}
+
+/**
  * Place a new customer order
  * Dynamic backend integration: always calls real POST /orders
  */
@@ -46,7 +64,7 @@ export async function createOrder(payload) {
   if (mockDb?.saveRealOrder) {
     mockDb.saveRealOrder(realOrder);
   }
-  return realOrder;
+  return normalizeOrder(realOrder);
 }
 
 /**
@@ -59,19 +77,27 @@ export async function getOrders(params = {}) {
     return mockDb.listOrders(params);
   }
   const response = await axiosClient.get('/orders', { params });
-  return response.data;
+  const data = response.data || {};
+  return {
+    ...data,
+    items: Array.isArray(data.items) ? data.items : [],
+    total: Number(data.total || 0),
+    page: Number(data.page || 1),
+    page_size: Number(data.page_size || 10),
+    total_pages: Number(data.total_pages ?? data.total_page ?? 1),
+  };
 }
 
 /**
  * Get detailed view of an order
  */
-export async function getOrderById(id) {
+export async function getOrderById(id, config = {}) {
   if (USE_MOCK_ORDERS) {
-    probeRealApi(() => axiosClient.get(`/orders/${id}`));
+    probeRealApi(() => axiosClient.get(`/orders/${id}`, config));
     return mockDb.getOrder(id);
   }
-  const response = await axiosClient.get(`/orders/${id}`);
-  return response.data;
+  const response = await axiosClient.get(`/orders/${id}`, config);
+  return normalizeOrder(response.data);
 }
 
 /**
@@ -83,7 +109,7 @@ export async function cancelOrder(id) {
     return mockDb.cancelOrder(id);
   }
   const response = await axiosClient.post(`/orders/${id}/cancel`);
-  return response.data;
+  return normalizeOrder(response.data);
 }
 
 /**

@@ -1,5 +1,5 @@
 import { AlertTriangle, Clock, User } from 'lucide-react';
-import { formatCurrency, formatTimeSince, isOrderDelayed } from '../../utils/format';
+import { formatCurrency, formatTimeSince, isOrderDelayed, canAssign } from '../../utils/format';
 import { PAYMENT_STATUS_CONFIG, RETURN_STATUS_CONFIG } from '../../utils/constants';
 import StatusBadge from '../ui/StatusBadge';
 import Button from '../ui/Button';
@@ -18,7 +18,8 @@ export default function OwnerOrderCard({
   const isDelayed = isOrderDelayed(order.status, order.status_updated_at);
 
   const payConfig = PAYMENT_STATUS_CONFIG[order.payment_status] || PAYMENT_STATUS_CONFIG.MOCK_PAID;
-  const retConfig = order.return_status ? RETURN_STATUS_CONFIG[order.return_status] : null;
+  const retStatus = order.return_status || (typeof order.return_request === 'string' ? order.return_request : order.return_request?.status);
+  const retConfig = retStatus ? RETURN_STATUS_CONFIG[retStatus] : null;
 
   const renderActionButton = () => {
     if (order.status === 'PLACED') {
@@ -63,7 +64,7 @@ export default function OwnerOrderCard({
         </Button>
       );
     }
-    if (order.status === 'READY') {
+    if (canAssign(order)) {
       return (
         <Button
           type="button"
@@ -73,8 +74,15 @@ export default function OwnerOrderCard({
           onClick={(e) => { e.stopPropagation(); onOpenAssign(order); }}
           className="text-xs"
         >
-          Assign partner
+          Assign delivery partner
         </Button>
+      );
+    }
+    if (order.status === 'READY' && order.delivery_partner) {
+      return (
+        <span className="text-xs font-medium text-muted-text">
+          Assigned to {order.delivery_partner.name} ({order.delivery_partner.phone})
+        </span>
       );
     }
     return null;
@@ -127,7 +135,7 @@ export default function OwnerOrderCard({
       <div className="space-y-1.5 text-xs border-t border-border/70 pt-2.5">
         <div className="flex items-center gap-1.5 font-semibold text-text-main">
           <User className="w-3.5 h-3.5 text-muted-text" />
-          <span>{order.customer_name}</span>
+          <span>{order.customer?.name || order.customer_name || 'Customer'}</span>
         </div>
         <p className="text-muted-text line-clamp-1">{itemsSummary}</p>
       </div>
