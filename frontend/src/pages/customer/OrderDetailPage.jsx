@@ -54,8 +54,8 @@ export default function OrderDetailPage() {
     return () => { ignore = true; };
   }, [id, reloadTrigger]);
 
-  // Stop polling only when status is CANCELLED or REFUNDED. Keep polling DELIVERED so return approval is picked up.
-  const isTerminal = ['CANCELLED', 'REFUNDED'].includes(order?.status);
+  // Stop polling when status is DELIVERED, CANCELLED, or REFUNDED.
+  const isTerminal = ['DELIVERED', 'CANCELLED', 'REFUNDED'].includes(order?.status);
   const isActionRunning = isCancelling || isAdvancing;
 
   usePolling(async () => {

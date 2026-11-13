@@ -11,12 +11,40 @@ from app.schemas import (
 from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from fastapi import HTTPException, status
 
+
+MAX_ADDRESSES =  10
+
 async def _load_customer_info(customer_id : str, db : AsyncSession):
     customer = await db.scalar(select(Users).options(selectinload(Users.addresses)).where(Users.id == customer_id))
+    if not customer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Customer Not Found"
+        )
     return customer
 
-async def get_user_address_service(customer_id : str, db : AsyncSession) -> dict:
-    return  await _load_customer_info(customer_id=customer_id, db=db)
+async def get_user_address_service(customer_id : str, db : AsyncSession, is_default=True) -> dict:
+    filters = [UserAddress.user_id == customer_id]
+    if is_default is not None:
+        filters.append(UserAddress.is_default == is_default)
+    user_address_details = (await db.scalars(select(UserAddress).where(*filters))).all()
+
+    addresses = [{
+        "house" : addr.house,
+        "city" : addr.city,
+        "state" : addr.state,
+        "country" : addr.country,
+        "country_code": addr.country_code,
+        "is_default" : addr.is_default,
+        "phone_number": addr.phone_number,
+        "id" :  addr.id,
+        "created_at" : addr.created_at,
+        "updated_at" : addr.updated_at
+    }for addr in user_address_details
+    ]
+
+    return addresses
+    
  
 async def create_user_address_service(
         payload : CreateUserAddress, 
@@ -27,14 +55,21 @@ async def create_user_address_service(
 
     customer_address = customer.addresses
 
-    is_default = True
-    for addr in customer_address:
-        if addr.is_default == True:
-            is_default = False
+    if len(customer_address) == MAX_ADDRESSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="One user can have only 10 addresses"
+        )
+
+    make_default = payload.is_default or not any(a.is_default for a in customer_address)
+
+    if make_default:
+        for addr in customer_address:
+            addr.is_default = False
 
     new_user_address = UserAddress(
         user_id = customer_id,
-        is_default = is_default,
+        is_default = make_default,
         house = payload.house,
         city = payload.city,
         state = payload.state,

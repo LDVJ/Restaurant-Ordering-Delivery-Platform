@@ -9,8 +9,8 @@ import axiosClient from './axiosClient';
  * Get customer saved addresses (plain list, max 10)
  * @returns {Promise<Array>} List of addresses
  */
-export async function getAddresses() {
-  const response = await axiosClient.get('/addresses');
+export async function getAddresses(params = {}) {
+  const response = await axiosClient.get('/addresses', { params });
   return response.data?.addresses || [];
 }
 

@@ -17,7 +17,7 @@ class Restaurants(Base):
     phone_number : Mapped[str] = mapped_column(String(20), nullable=False)
     phone_e164 : Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
     is_active : Mapped[bool] = mapped_column(Boolean, default=True, server_default=text("true"))    
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True ,server_default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=func.now() ,server_default=func.now())
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True,onupdate=func.now())
 
     address : Mapped["RestaurantAddress"] = relationship(back_populates="restaurant",uselist=False)
@@ -36,7 +36,7 @@ class RestaurantAddress(Base):
     country_code : Mapped[str] = mapped_column(String(5), nullable=False)
     phone_number : Mapped[str] = mapped_column(String(20), nullable=False)
     phone_e164 : Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=func.now() ,server_default=func.now())
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
     restaurant : Mapped["Restaurants"] = relationship(back_populates="address")
@@ -50,7 +50,7 @@ class MenuItems(Base):
     description : Mapped[str] = mapped_column(String(200), nullable=False)
     price : Mapped[Decimal] = mapped_column(Numeric(10,2), nullable=False)
     is_available : Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default=text("true"))
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=func.now() ,server_default=func.now())
     updated_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
     restaurant : Mapped["Restaurants"] = relationship(back_populates="menu_items")

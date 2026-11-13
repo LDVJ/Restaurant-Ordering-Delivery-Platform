@@ -11,6 +11,7 @@ export default function CheckoutSummaryCard({
   totalItems,
   subtotal,
   isSubmitting,
+  onPlaceOrder,
 }) {
   return (
     <div className="bg-white rounded-2xl border border-border p-5 space-y-4 shadow-2xs sticky top-20">
@@ -53,10 +54,11 @@ export default function CheckoutSummaryCard({
       </div>
 
       <Button
-        type="submit"
+        type="button"
         variant="primary"
         isLoading={isSubmitting}
         disabled={isSubmitting}
+        onClick={onPlaceOrder}
         className="w-full mt-2 h-11"
       >
         Place order • {formatCurrency(subtotal)}

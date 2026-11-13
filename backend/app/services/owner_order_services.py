@@ -20,7 +20,9 @@ async def get_all_owner_orders_service(
         db : AsyncSession, 
         page : int , 
         page_size : int, 
-        order_status : OrderStatus | None
+        order_status : OrderStatus | None,
+        date_from : datetime,
+        date_to : datetime
         ):
     restaurant = await db.scalar(select(Restaurants).where(Restaurants.owner_id == owner.id))
 
@@ -34,6 +36,10 @@ async def get_all_owner_orders_service(
 
     if order_status:
         filters.append(Orders.status == order_status)
+    if date_from:
+        filters.append(Orders.created_at >= date_from)
+    if date_to:
+        filters.append(Orders.created_at < date_to)
 
     total = await db.scalar(select(func.count(Orders.id)).where(*filters)) or 0
     total_page = math.ceil(total/page_size)
@@ -299,6 +305,7 @@ async def assign_delivery_partner_service(
         )
 
     order.delivery_partner_id = payload.delivery_partner_id
+    order.status = OrderStatus.ASSIGNED
 
     try:
         await db.commit()

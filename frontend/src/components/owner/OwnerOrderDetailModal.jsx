@@ -91,52 +91,59 @@ export default function OwnerOrderDetailModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`Order #${shortId}`} size="lg">
-      <div className="space-y-4 text-left">
-        <div className="flex items-center justify-between gap-2 flex-wrap pb-3 border-b border-border">
-          <div className="flex items-center gap-2 flex-wrap">
-            <StatusBadge status={order.status} />
-            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${payConfig.bg} ${payConfig.text}`}>
-              {payConfig.label}
-            </span>
-            {retConfig && (
-              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${retConfig.bg} ${retConfig.text}`}>
-                {retConfig.label}
+      <div className="flex flex-col text-left">
+        {/* Fixed Header */}
+        <div className="shrink-0 space-y-3 pb-3 border-b border-border">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <StatusBadge status={order.status} />
+              <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${payConfig.bg} ${payConfig.text}`}>
+                {payConfig.label}
               </span>
-            )}
+              {retConfig && (
+                <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${retConfig.bg} ${retConfig.text}`}>
+                  {retConfig.label}
+                </span>
+              )}
+            </div>
+            <span className="text-xs text-muted-text">{formatDateTime(order.created_at)}</span>
           </div>
-          <span className="text-xs text-muted-text">{formatDateTime(order.created_at)}</span>
+
+          <div className="flex border-b border-border text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-2 border-b-2 -mb-px transition-colors cursor-pointer ${
+                activeTab === 'details' ? 'border-brand text-brand' : 'border-transparent text-muted-text hover:text-text-main'
+              }`}
+            >
+              Order Details
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('timeline')}
+              className={`px-4 py-2 border-b-2 -mb-px transition-colors cursor-pointer ${
+                activeTab === 'timeline' ? 'border-brand text-brand' : 'border-transparent text-muted-text hover:text-text-main'
+              }`}
+            >
+              Tracking Timeline
+            </button>
+          </div>
         </div>
 
-        <div className="flex border-b border-border text-xs font-semibold">
-          <button
-            type="button"
-            onClick={() => setActiveTab('details')}
-            className={`px-4 py-2 border-b-2 -mb-px transition-colors cursor-pointer ${
-              activeTab === 'details' ? 'border-brand text-brand' : 'border-transparent text-muted-text hover:text-text-main'
-            }`}
-          >
-            Order Details
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('timeline')}
-            className={`px-4 py-2 border-b-2 -mb-px transition-colors cursor-pointer ${
-              activeTab === 'timeline' ? 'border-brand text-brand' : 'border-transparent text-muted-text hover:text-text-main'
-            }`}
-          >
-            Tracking Timeline
-          </button>
+        {/* Scrollable Body: min-height content size, max-height 70% screen height */}
+        <div className="flex-1 min-h-[min-content] max-h-[70vh] overflow-y-auto py-3 space-y-4 pr-1">
+          {activeTab === 'timeline' ? (
+            <div className="py-1">
+              <OrderTimeline status={order.status} vertical={true} />
+            </div>
+          ) : (
+            <OwnerOrderDetailContent order={order} />
+          )}
         </div>
 
-        {activeTab === 'timeline' ? (
-          <div className="py-2">
-            <OrderTimeline status={order.status} />
-          </div>
-        ) : (
-          <OwnerOrderDetailContent order={order} />
-        )}
-
-        <div className="flex items-center justify-between pt-3 border-t border-border">
+        {/* Fixed Footer Actions */}
+        <div className="shrink-0 flex items-center justify-between pt-3 border-t border-border mt-auto">
           <Button type="button" variant="ghost" size="sm" onClick={onClose}>
             Close
           </Button>

@@ -17,7 +17,7 @@ class Users(Base):
     country_code : Mapped[str] = mapped_column(String(5), nullable=False)
     phone_number : Mapped[str] = mapped_column(String(20), nullable=False)
     phone_e164 : Mapped[str] = mapped_column(String(20), nullable=False)
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=func.now(),server_default=func.now())
     updated_at : Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
     addresses : Mapped[list["UserAddress"]] = relationship(back_populates="user", cascade="all, delete-orphan", passive_deletes=True)
@@ -37,7 +37,7 @@ class UserAddress(Base):
     country_code : Mapped[str] = mapped_column(String(5), nullable=False)
     phone_number : Mapped[str] = mapped_column(String(20), nullable=False)
     phone_e164 : Mapped[str] = mapped_column(String(20), nullable=False)
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=func.now() ,server_default=func.now())
     updated_at : Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, onupdate=func.now())
 
     user : Mapped["Users"] = relationship(back_populates="addresses")

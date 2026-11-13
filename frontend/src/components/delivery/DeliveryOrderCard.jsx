@@ -10,7 +10,7 @@ export default function DeliveryOrderCard({
   onMarkDelivered,
   isActionLoading = false,
 }) {
-  const isAssigned = order.status === 'ASSIGNED';
+  const canStart = order.status === 'ASSIGNED' || order.status === 'READY';
   const isOutForDelivery = order.status === 'OUT_FOR_DELIVERY';
   const isDelivered = order.status === 'DELIVERED';
 
@@ -106,7 +106,7 @@ export default function DeliveryOrderCard({
 
       {/* Prominent Action Button - Stuck to bottom */}
       <div className="mt-auto pt-3 border-t border-border/70">
-        {isAssigned && (
+        {canStart && (
           <Button
             type="button"
             variant="primary"

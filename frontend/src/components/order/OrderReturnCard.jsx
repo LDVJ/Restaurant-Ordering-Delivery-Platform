@@ -28,8 +28,13 @@ const RETURN_EXPLANATIONS = {
 export default function OrderReturnCard({ returnRequest }) {
   if (!returnRequest) return null;
 
+  const status = typeof returnRequest === 'string' ? returnRequest : returnRequest.status;
+  const reason = typeof returnRequest === 'object' ? returnRequest.reason : null;
+  const createdAt = typeof returnRequest === 'object' ? returnRequest.created_at : null;
+  const resolvedAt = typeof returnRequest === 'object' ? returnRequest.resolved_at : null;
+
   const explanation =
-    RETURN_EXPLANATIONS[returnRequest.status] || RETURN_EXPLANATIONS[RETURN_STATUSES.REQUESTED];
+    RETURN_EXPLANATIONS[status] || RETURN_EXPLANATIONS[RETURN_STATUSES.REQUESTED];
   const IconComponent = explanation.icon;
 
   return (
@@ -39,20 +44,26 @@ export default function OrderReturnCard({ returnRequest }) {
           <RotateCcw className="w-4 h-4 text-brand" />
           <span>Return Request</span>
         </h3>
-        <StatusBadge status={returnRequest.status} type="return" />
+        <StatusBadge status={status} type="return" />
       </div>
 
-      <div className="text-xs space-y-1.5">
-        <p className="text-muted-text">
-          <strong className="text-text-main">Reason:</strong> {returnRequest.reason}
-        </p>
-        <p className="text-muted-text">
-          Requested on <span className="text-text-main">{formatDateTime(returnRequest.created_at)}</span>
-          {returnRequest.resolved_at && (
-            <span> • Resolved on {formatDateTime(returnRequest.resolved_at)}</span>
+      {(reason || createdAt) && (
+        <div className="text-xs space-y-1.5">
+          {reason && (
+            <p className="text-muted-text">
+              <strong className="text-text-main">Reason:</strong> {reason}
+            </p>
           )}
-        </p>
-      </div>
+          {createdAt && (
+            <p className="text-muted-text">
+              Requested on <span className="text-text-main">{formatDateTime(createdAt)}</span>
+              {resolvedAt && (
+                <span> • Resolved on {formatDateTime(resolvedAt)}</span>
+              )}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Plain language explanation banner */}
       <div className={`p-3 rounded-xl border flex items-center gap-2.5 text-xs font-medium ${explanation.color}`}>

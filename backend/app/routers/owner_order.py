@@ -15,6 +15,7 @@ from app.services.owner_order_services import (
     update_order_status_service,
     assign_delivery_partner_service
     )
+from datetime import datetime
 
 
 router = APIRouter(
@@ -27,6 +28,8 @@ router = APIRouter(
 async def get_all_owner_orders(
     owner : CurrentOwner, 
     status : OrderStatus | None = None,
+    date_from : datetime |None = None,
+    date_to : datetime | None = None,
     db : AsyncSession = Depends(get_db), 
     page : int | None= Query(1, ge=1),
     page_size : int | None = Query(20, le=50)
@@ -37,7 +40,9 @@ async def get_all_owner_orders(
         db = db,
         page = page,
         page_size = page_size,
-        order_status = status
+        order_status = status,
+        date_from = date_from,
+        date_to= date_to
     )
 
 @router.get("/{order_id}", response_model=OwnerOrderResponse)

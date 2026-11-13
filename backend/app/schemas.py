@@ -320,6 +320,7 @@ class CreateUserAddress(BaseModel):
     state : str = Field(min_length=3, max_length=100)
     country : str = Field(min_length=3, max_length=100)
     country_code: CountryCode
+    is_default : bool
     phone_number: PhoenNumber
 
     @computed_field
@@ -332,7 +333,6 @@ class UserAddress(CreateUserAddress):
     id : str
     created_at : datetime
     updated_at : datetime | None = None
-    is_default : bool
 
 class UserAddressResponse(BaseModel):
 

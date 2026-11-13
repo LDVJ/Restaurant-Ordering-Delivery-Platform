@@ -34,12 +34,16 @@ export default function CheckoutPage() {
     let ignore = false;
     async function loadAddresses() {
       try {
-        const data = await addressApi.getAddresses();
+        const def = await addressApi.getAddresses({ is_default: true });
         if (!ignore) {
-          const list = Array.isArray(data) ? data : [];
-          setAddresses(list);
-          if (list.length > 0) setSelectedAddress((prev) => prev || list.find((a) => a.is_default) || list[0]);
-          else setSelectedAddress(null);
+          if (Array.isArray(def) && def.length > 0) {
+            setSelectedAddress(def[0]); setAddresses(def);
+          } else {
+            const all = await addressApi.getAddresses();
+            const list = Array.isArray(all) ? all : [];
+            setAddresses(list);
+            setSelectedAddress(list.length > 0 ? (list.find((a) => a.is_default) || list[0]) : null);
+          }
           setAddressFetchError('');
         }
       } catch (err) {
@@ -52,34 +56,39 @@ export default function CheckoutPage() {
     return () => { ignore = true; };
   }, [reloadTrigger]);
 
-  const retryFetch = () => {
-    setIsLoadingAddresses(true);
-    setReloadTrigger((prev) => prev + 1);
-  };
-
+  const retryFetch = () => { setIsLoadingAddresses(true); setReloadTrigger((prev) => prev + 1); };
   if (items.length === 0 && !placedOrder) return <Navigate to="/cart" replace />;
   if (placedOrder) return <CheckoutSuccessView order={placedOrder} />;
 
   const formatAddressString = (a) => `${a.house}, ${a.city}, ${a.state}, ${a.country}`;
   const getContactPhone = (a) => a.phone_e164 || `${a.country_code}${a.phone_number}`;
 
+  const handleOpenPicker = async () => {
+    try {
+      const fresh = await addressApi.getAddresses();
+      setAddresses(Array.isArray(fresh) ? fresh : []);
+    } catch { /* silent */ }
+    setIsPickerOpen(true);
+  };
+
   const handleCreateAddress = async (payload) => {
     const created = await addressApi.createAddress(payload);
-    setAddresses((prev) => [created, ...prev]);
+    try {
+      const fresh = await addressApi.getAddresses();
+      setAddresses(Array.isArray(fresh) ? fresh : [created]);
+    } catch { setAddresses((prev) => [created, ...prev]); }
     setSelectedAddress(created);
     return created;
   };
 
   const handlePlaceOrder = async (e) => {
-    e.preventDefault();
+    if (e?.preventDefault) e.preventDefault();
     if (isSubmittingOrder || !selectedAddress) return;
     const formattedAddress = formatAddressString(selectedAddress);
     const ok = await confirm({
       title: 'Place order?',
       message: `Place order with ${restaurantName || 'the kitchen'} for ${formatCurrency(subtotal)} to ${formattedAddress}?`,
-      confirmText: 'Confirm & Place order',
-      cancelText: 'Back to checkout',
-      variant: 'default',
+      confirmText: 'Confirm & Place order', cancelText: 'Back to checkout', variant: 'default',
     });
     if (!ok) return;
 
@@ -110,7 +119,7 @@ export default function CheckoutPage() {
       <h1 className="text-2xl sm:text-3xl font-bold text-text-main tracking-tight">Checkout</h1>
       {formError && <FormAlert message={formError} />}
 
-      <form onSubmit={handlePlaceOrder} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div className="lg:col-span-7 bg-white rounded-2xl border border-border p-5 sm:p-6 space-y-5 shadow-2xs">
           <div>
             <h2 className="text-base font-bold text-text-main flex items-center gap-2">
@@ -126,7 +135,7 @@ export default function CheckoutPage() {
               <p className="text-xs text-danger font-medium">{addressFetchError}</p>
               <Button type="button" variant="outline" size="sm" onClick={retryFetch}>Retry</Button>
             </div>
-          ) : addresses.length > 0 && selectedAddress ? (
+          ) : selectedAddress ? (
             <div className="rounded-xl border border-border p-4 bg-gray-50/50 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1">
@@ -139,7 +148,7 @@ export default function CheckoutPage() {
                     <Phone className="w-3.5 h-3.5 text-muted-text" /><span>{getContactPhone(selectedAddress)}</span>
                   </p>
                 </div>
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsPickerOpen(true)}>Change</Button>
+                <Button type="button" variant="outline" size="sm" onClick={handleOpenPicker}>Change</Button>
               </div>
             </div>
           ) : (
@@ -147,9 +156,9 @@ export default function CheckoutPage() {
               <p className="text-xs text-muted-text">You do not have a saved address yet. Enter your address to place this order.</p>
               <AddressForm
                 hasExistingAddresses={false}
-                onSubmit={async (payload) => {
+                onSubmit={async (p) => {
                   setIsCreatingFirstAddress(true);
-                  try { await handleCreateAddress(payload); } finally { setIsCreatingFirstAddress(false); }
+                  try { await handleCreateAddress(p); } finally { setIsCreatingFirstAddress(false); }
                 }}
                 submitLabel="Save and use address"
                 isSubmitting={isCreatingFirstAddress}
@@ -165,23 +174,17 @@ export default function CheckoutPage() {
 
         <div className="lg:col-span-5">
           <CheckoutSummaryCard
-            items={items}
-            restaurantName={restaurantName}
-            totalItems={totalItems}
-            subtotal={subtotal}
-            isSubmitting={isSubmittingOrder || !selectedAddress}
+            items={items} restaurantName={restaurantName} totalItems={totalItems} subtotal={subtotal}
+            isSubmitting={isSubmittingOrder || !selectedAddress} onPlaceOrder={handlePlaceOrder}
           />
         </div>
-      </form>
+      </div>
 
       {isPickerOpen && (
         <AddressPickerModal
-          isOpen={isPickerOpen}
-          onClose={() => setIsPickerOpen(false)}
-          addresses={addresses}
-          selectedId={selectedAddress?.id}
-          onSelectAddress={(addr) => setSelectedAddress(addr)}
-          onCreateAddress={handleCreateAddress}
+          isOpen={isPickerOpen} onClose={() => setIsPickerOpen(false)}
+          addresses={addresses} selectedId={selectedAddress?.id}
+          onSelectAddress={(addr) => setSelectedAddress(addr)} onCreateAddress={handleCreateAddress}
         />
       )}
     </div>

@@ -142,7 +142,7 @@ async def update_restaurant_address(payload : UpdateRestaurantAdress, db : Async
 
     return updated_restaurant
 
-async def get_all_menu_items_services(owner_id : str, db : AsyncSession, page : int, page_size : int, search : str | None, is_available : bool | None):
+async def get_all_menu_items_services(owner_id : str, db : AsyncSession, page : int, page_size : int, search : str , is_available : bool ):
     restaurant = await _load_owner_restaurant(db= db, owner_id=owner_id)
     restaurant_id = restaurant.id
 
@@ -152,7 +152,7 @@ async def get_all_menu_items_services(owner_id : str, db : AsyncSession, page : 
     filters = [MenuItems.restaurant_id == restaurant_id]
     if search:
         filters.append(MenuItems.name.ilike(f"%{search}%"))
-    if is_available:
+    if is_available is not None:
         filters.append(MenuItems.is_available == is_available)
     
     total = (await db.scalar(select(func.count(MenuItems.id)).where(*filters))) or 0

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.oauth2 import customer_only, CurrentCustomer
 from app.schemas import(
     UserAddressResponse,
@@ -25,12 +25,12 @@ router = APIRouter(
 
 
 @router.get("",response_model=UserAddressResponse, status_code=status.HTTP_200_OK)
-async def get_user_address(customer : CurrentCustomer, db : AsyncSession = Depends(get_db)):
-    user_info = await get_user_address_service(customer_id = customer.id, db = db)
+async def get_user_address(customer : CurrentCustomer, is_default : bool | None = Query(None), db : AsyncSession = Depends(get_db)):
+    addresses = await get_user_address_service(customer_id = customer.id, db = db, is_default = is_default)
 
     return {
         "user_id" : customer.id,
-        "addresses" : user_info.addresses
+        "addresses" : addresses
     }
 
 @router.post("",response_model=UserAddress, status_code = status.HTTP_201_CREATED)
@@ -53,7 +53,6 @@ async def set_default_address(address_id : str, customer : CurrentCustomer, db :
         customer_id = customer.id,
         db = db
     )
-
 
 @router.delete("/{address_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_address(

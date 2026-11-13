@@ -386,68 +386,87 @@ async def cancel_order_service(
     
 
     return response
-
 async def return_request_service(
-        payload : CreateReturnRequest,
-        customer : CurrentCustomer,
-        order_id : str,
-        db : AsyncSession
+    payload: CreateReturnRequest,
+    customer: CurrentCustomer,
+    order_id: str,
+    db: AsyncSession,
 ):
-    order = await db.scalar(select(
-        Orders
-    ).options(
-        joinedload(Orders.restaurant).joinedload(Restaurants.address),
-        selectinload(Orders.order_items)
-    ).where(
-        Orders.id == order_id,
-        Orders.customer_id == customer.id
-    ))
+    customer_id = customer.id
+
+
+    order = await db.scalar(
+        select(Orders).where(
+            Orders.id == order_id,
+            Orders.customer_id == customer_id,
+        )
+    )
 
     if not order:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Requested order not found for this user"
+            detail="Requested order not found for this user",
         )
 
     if order.status != OrderStatus.DELIVERED:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only delievred can be returned"
+            detail="Only delivered orders can be returned",
         )
 
-    check_return_table = await db.scalar(select(ReturnRequest.id).where(ReturnRequest.order_id == order.id))
-
+    check_return_table = await db.scalar(
+        select(ReturnRequest.id).where(ReturnRequest.order_id == order.id)
+    )
     if check_return_table:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Already return request opted"
+            detail="A return request already exists for this order",
         )
 
     new_return_request = ReturnRequest(
-        order_id = order.id,
-        customer_id = customer.id,
-        reason = payload.reason,
-        status = ReturnRequestStatus.REQUESTED,
+        order_id=order.id,
+        customer_id=customer_id,
+        reason=payload.reason,
+        status=ReturnRequestStatus.REQUESTED,
     )
-
     db.add(new_return_request)
 
     try:
         await db.commit()
-        response = await _create_response(
-            order = order,
-            restaurant=order.restaurant,
-            order_items=order.order_items,
-            db = db,
-            customer=customer
-        )
     except IntegrityError as e:
         await db.rollback()
         print(repr(e.orig))
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unable to process return Request")
-    except SQLAlchemyError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to process return request",
+        )
+    except SQLAlchemyError as e:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to return the order")
+        print(f"Error : {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to return the order",
+        )
+    
+    order = await db.scalar(
+        select(Orders)
+        .options(
+            joinedload(Orders.restaurant).joinedload(Restaurants.address),
+            joinedload(Orders.delivery_partner),
+            joinedload(Orders.customer),
+            selectinload(Orders.order_items),
+        )
+        .where(Orders.id == order_id)
+        .execution_options(populate_existing=True)
+    )
+
+    response = await _create_response(
+        order=order,
+        restaurant=order.restaurant,
+        order_items=order.order_items,
+        db=db,
+        customer=order.customer,
+    )
 
     return response
 

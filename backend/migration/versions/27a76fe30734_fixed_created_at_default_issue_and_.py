@@ -1,19 +1,18 @@
-"""create initial table
+"""fixed created at default issue and creating table from scratch
 
-Revision ID: 8e31e2e066f8
+Revision ID: 27a76fe30734
 Revises: 
-Create Date: 2026-11-04 22:17:39.304849
+Create Date: 2026-11-13 21:21:01.759654
 
 """
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8e31e2e066f8'
+revision: str = '27a76fe30734'
 down_revision: Union[str, Sequence[str], None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -46,7 +45,7 @@ def upgrade() -> None:
     sa.Column('phone_number', sa.String(length=20), nullable=False),
     sa.Column('phone_e164', sa.String(length=20), nullable=False),
     sa.Column('is_active', sa.Boolean(), server_default=sa.text('true'), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['owner_id'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -95,7 +94,7 @@ def upgrade() -> None:
     sa.Column('status', sa.Enum('PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', name='order_status'), nullable=False),
     sa.Column('payment_status', sa.Enum('PENDING', 'MOCK_PAID', 'REFUNDED', name='payment_status'), nullable=False),
     sa.Column('bill_amount', sa.Numeric(precision=10, scale=2), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('delivered_at', sa.DateTime(timezone=True), nullable=True),
     sa.Column('delivery_address_text', sa.String(length=500), nullable=False),
@@ -130,10 +129,10 @@ def upgrade() -> None:
     sa.Column('id', sa.String(length=32), nullable=False),
     sa.Column('restaurant_id', sa.String(length=32), nullable=False),
     sa.Column('order_id', sa.String(length=32), nullable=False),
-    sa.Column('order_status', postgresql.ENUM('PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', name='order_status', create_type=False) ,nullable=False),
+    sa.Column('order_status', sa.Enum('PENDING_PAYMENT', 'PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED', name='order_status'), nullable=False),
     sa.Column('message', sa.Text(), nullable=False),
     sa.Column('is_read', sa.Boolean(), server_default=sa.text('false'), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='CASCADE'),
     sa.ForeignKeyConstraint(['restaurant_id'], ['restaurants.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
@@ -160,7 +159,7 @@ def upgrade() -> None:
     sa.Column('entry_type', sa.Enum('PAYMENT', 'REFUND', name='ledger_entry_type'), nullable=False),
     sa.Column('amount', sa.Numeric(precision=10, scale=2), nullable=False),
     sa.Column('transaction_ref', sa.String(), nullable=False),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('transaction_ref')
@@ -171,17 +170,14 @@ def upgrade() -> None:
     sa.Column('customer_id', sa.String(length=32), nullable=False),
     sa.Column('reason', sa.Text(), nullable=False),
     sa.Column('status', sa.Enum('REQUESTED', 'APPROVED', 'REJECTED', name='return_request_status'), nullable=False),
-    sa.Column('resolved_by', sa.String(length=32), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('resolved_at', sa.DateTime(timezone=True), nullable=True),
     sa.ForeignKeyConstraint(['customer_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='RESTRICT'),
-    sa.ForeignKeyConstraint(['resolved_by'], ['users.id'], ondelete='RESTRICT'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_return_requests_customer_id'), 'return_requests', ['customer_id'], unique=False)
     op.create_index(op.f('ix_return_requests_order_id'), 'return_requests', ['order_id'], unique=True)
-    op.create_index(op.f('ix_return_requests_resolved_by'), 'return_requests', ['resolved_by'], unique=False)
     op.create_table('reviews',
     sa.Column('id', sa.String(length=32), nullable=False),
     sa.Column('order_id', sa.String(length=32), nullable=False),
@@ -189,7 +185,7 @@ def upgrade() -> None:
     sa.Column('restaurant_id', sa.String(length=32), nullable=False),
     sa.Column('rating', sa.Integer(), nullable=False),
     sa.Column('comment', sa.Text(), nullable=True),
-    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.CheckConstraint('rating BETWEEN 1 AND 5', name='validating_rating_constraint'),
     sa.ForeignKeyConstraint(['customer_id'], ['users.id'], ondelete='RESTRICT'),
     sa.ForeignKeyConstraint(['order_id'], ['orders.id'], ondelete='CASCADE'),
@@ -209,53 +205,30 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_reviews_order_id'), table_name='reviews')
     op.drop_index(op.f('ix_reviews_customer_id'), table_name='reviews')
     op.drop_table('reviews')
-
-    op.drop_index(op.f('ix_return_requests_resolved_by'), table_name='return_requests')
     op.drop_index(op.f('ix_return_requests_order_id'), table_name='return_requests')
     op.drop_index(op.f('ix_return_requests_customer_id'), table_name='return_requests')
     op.drop_table('return_requests')
-
     op.drop_table('payment_ledger')
-
     op.drop_index(op.f('ix_order_items_order_id'), table_name='order_items')
     op.drop_index(op.f('ix_order_items_menu_item_id'), table_name='order_items')
     op.drop_table('order_items')
-
     op.drop_index(op.f('ix_admin_reminder_logs_restaurant_id'), table_name='admin_reminder_logs')
     op.drop_index(op.f('ix_admin_reminder_logs_order_id'), table_name='admin_reminder_logs')
     op.drop_table('admin_reminder_logs')
-
     op.drop_index(op.f('ix_restaurant_address_restaurant_id'), table_name='restaurant_address')
     op.drop_table('restaurant_address')
-
     op.drop_index(op.f('ix_orders_restaurant_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_delivery_partner_id'), table_name='orders')
     op.drop_index(op.f('ix_orders_customer_id'), table_name='orders')
     op.drop_table('orders')
-
     op.drop_index(op.f('ix_menu_items_restaurant_id'), table_name='menu_items')
     op.drop_index(op.f('ix_menu_items_name'), table_name='menu_items')
     op.drop_table('menu_items')
-
-    op.drop_index(
-        'unique_default_address',
-        table_name='user_address',
-        postgresql_where=sa.text('is_default=true')
-    )
+    op.drop_index('unique_default_address', table_name='user_address', postgresql_where=sa.text('is_default=true'))
     op.drop_index(op.f('ix_user_address_user_id'), table_name='user_address')
     op.drop_table('user_address')
-
     op.drop_index(op.f('ix_restaurants_owner_id'), table_name='restaurants')
     op.drop_index(op.f('ix_restaurants_name'), table_name='restaurants')
     op.drop_table('restaurants')
-
     op.drop_table('users')
-
-    # Drop PostgreSQL ENUM types after dropping dependent tables
-    op.execute("DROP TYPE IF EXISTS return_request_status")
-    op.execute("DROP TYPE IF EXISTS ledger_entry_type")
-    op.execute("DROP TYPE IF EXISTS payment_status")
-    op.execute("DROP TYPE IF EXISTS order_status")
-    op.execute("DROP TYPE IF EXISTS users_role")
-
     # ### end Alembic commands ###

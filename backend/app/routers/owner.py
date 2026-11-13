@@ -65,7 +65,7 @@ async def put_restaurant_address(payload : UpdateRestaurantAdress, owner : Curre
 async def get_all_menu_items(
     owner : CurrentOwner, 
     search : str | None = None,
-    is_available : bool | None = None,
+    is_available : bool | None = Query(None),
     db : AsyncSession = Depends(get_db), 
     page : int = Query(1, ge=1), 
     page_size : int = Query(20, ge=1, lt=50),

@@ -30,11 +30,12 @@ export default function OwnerMenuPage() {
   const [isSubmittingDish, setIsSubmittingDish] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
 
-  const debouncedSearch = useDebounce(search, 300);
+  const debouncedSearch = useDebounce(search, 3000);
 
   useEffect(() => {
     let ignore = false;
     async function fetchMenu() {
+      setIsLoading(true);
       try {
         const params = { page, page_size: 10 };
         if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
