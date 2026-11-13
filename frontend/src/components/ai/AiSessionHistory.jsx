@@ -23,7 +23,7 @@ export default function AiSessionHistory({ history = [] }) {
             <div className="flex items-start gap-2">
               <MessageSquare className="w-3.5 h-3.5 text-brand shrink-0 mt-0.5" />
               <p className="text-xs font-bold text-text-main">
-                {item.question || 'Summarize my last 5 orders'}
+                {item.question}
               </p>
             </div>
             <div className="flex items-start gap-2 pl-2 border-l-2 border-brand/20">

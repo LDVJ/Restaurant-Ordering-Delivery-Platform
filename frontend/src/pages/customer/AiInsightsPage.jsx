@@ -18,12 +18,13 @@ export default function AiInsightsPage() {
   const [history, setHistory] = useState([]);
 
   const executeAsk = async (queryToAsk) => {
+    const q = queryToAsk ? queryToAsk.trim() : 'summarise my last five orders';
     setIsLoading(true);
     setErrorInfo(null);
-    setAskedQuestion(queryToAsk || 'Summarize my last 5 orders');
+    setAskedQuestion(q);
 
     try {
-      const data = await askAi(queryToAsk);
+      const data = await askAi(q);
       const answerText = data.answer || 'No answer returned.';
 
       if (activeAnswer) {
@@ -46,7 +47,7 @@ export default function AiInsightsPage() {
         message = 'The AI assistant took too long. Please try again.';
       }
 
-      setErrorInfo({ message, failedQuery: queryToAsk });
+      setErrorInfo({ message, failedQuery: q });
     } finally {
       setIsLoading(false);
     }
@@ -54,7 +55,7 @@ export default function AiInsightsPage() {
 
   const handleCustomSubmit = (e) => {
     e.preventDefault();
-    if (isLoading || !question.trim()) return;
+    if (isLoading || question.trim().length < 5) return;
     const query = question.trim();
     executeAsk(query);
     setQuestion('');
@@ -102,24 +103,13 @@ export default function AiInsightsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => executeAsk('')}
-            disabled={isLoading}
-            className="text-xs text-muted-text hover:text-brand"
-          >
-            Summarize my last 5 orders
-          </Button>
-
+        <div className="flex justify-end pt-1">
           <Button
             type="submit"
             variant="primary"
             size="sm"
             isLoading={isLoading}
-            disabled={isLoading || !question.trim()}
+            disabled={isLoading || question.trim().length < 5}
             icon={Send}
             className="h-9 px-4"
           >

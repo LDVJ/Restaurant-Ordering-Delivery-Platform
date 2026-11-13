@@ -674,3 +674,10 @@ class AllDeliveryOrderResponse(BaseModel):
 
 class UpdateDeliveryStatus(BaseModel):
     status : OrderStatus
+
+
+class AiInsightQuestion(BaseModel):
+    question : str = Field(min_length=5, max_length=300)
+
+class AiInsightAnswer(BaseModel):
+    answer : str

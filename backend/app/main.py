@@ -9,7 +9,8 @@ from app.routers import (
     owner_order,
     owner_reminder,
     owner_order_returns,
-    delivery
+    delivery,
+    ai_insight
 )
 from app.exception_handlers import register_exception_handlers
 
@@ -50,6 +51,7 @@ app.include_router(owner_order.router)
 app.include_router(owner_reminder.router)
 app.include_router(owner_order_returns.router)
 app.include_router(delivery.router)
+app.include_router(ai_insight.router)
 
 @app.get("/")
 async def root():
